@@ -1,183 +1,71 @@
-import { query } from "../db/pool";
+import * as servicesRepo from "../db/repositories/services.repo";
+import { cacheService } from "../redis/cache.service";
 import {
   CreateServiceInput,
   ServiceRecord,
-  ServiceRow,
   UpdateServiceInput,
 } from "../types/service.types";
 
-export function mapRowToService(row: ServiceRow): ServiceRecord {
-  return {
-    id: row.id,
-    name: row.name,
-    baseUrl: row.base_url,
-    healthCheckPath: row.health_check_path,
-    environment: row.environment as ServiceRecord["environment"],
-    checkIntervalSeconds: row.check_interval_seconds,
-    timeoutMs: row.timeout_ms,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
-  };
+export class ConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConflictError";
+  }
 }
 
 export async function createService(input: CreateServiceInput): Promise<ServiceRecord> {
-  const sql = `
-    INSERT INTO services (
-      name,
-      base_url,
-      health_check_path,
-      environment,
-      check_interval_seconds,
-      timeout_ms
-    ) VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING
-      id,
-      name,
-      base_url,
-      health_check_path,
-      environment,
-      check_interval_seconds,
-      timeout_ms,
-      created_at,
-      updated_at;
-  `;
+  // Check for duplicate service registration in the same environment
+  const existing = await servicesRepo.findByNameAndEnvironment(input.name, input.environment);
+  if (existing) {
+    throw new ConflictError(
+      `A service with name '${input.name}' is already registered in environment '${input.environment}'`
+    );
+  }
 
-  const params: unknown[] = [
-    input.name,
-    input.baseUrl,
-    input.healthCheckPath ?? "/health",
-    input.environment,
-    input.checkIntervalSeconds ?? 30,
-    input.timeoutMs ?? 5000,
-  ];
-
-  const result = await query<ServiceRow>(sql, params);
-  return mapRowToService(result.rows[0]);
+  const created = await servicesRepo.createService(input);
+  await cacheService.invalidateServiceCache(created.id);
+  return created;
 }
 
-export async function listServices(): Promise<ServiceRecord[]> {
-  const sql = `
-    SELECT
-      id,
-      name,
-      base_url,
-      health_check_path,
-      environment,
-      check_interval_seconds,
-      timeout_ms,
-      created_at,
-      updated_at
-    FROM services
-    ORDER BY created_at DESC;
-  `;
-
-  const result = await query<ServiceRow>(sql);
-  return result.rows.map(mapRowToService);
+export async function listServices(filter?: {
+  environment?: string;
+  isEnabled?: boolean;
+}): Promise<ServiceRecord[]> {
+  return servicesRepo.listServices(filter);
 }
 
 export async function getServiceById(id: string): Promise<ServiceRecord | null> {
-  const sql = `
-    SELECT
-      id,
-      name,
-      base_url,
-      health_check_path,
-      environment,
-      check_interval_seconds,
-      timeout_ms,
-      created_at,
-      updated_at
-    FROM services
-    WHERE id = $1;
-  `;
-
-  const result = await query<ServiceRow>(sql, [id]);
-
-  if (result.rows.length === 0) {
-    return null;
-  }
-
-  return mapRowToService(result.rows[0]);
+  return servicesRepo.getServiceById(id);
 }
 
 export async function updateService(
   id: string,
   input: UpdateServiceInput
 ): Promise<ServiceRecord | null> {
-  const setClauses: string[] = [];
-  const params: unknown[] = [];
-  let paramIndex = 1;
-
-  if (input.name !== undefined) {
-    setClauses.push(`name = $${paramIndex++}`);
-    params.push(input.name);
+  if (input.name) {
+    const existing = await servicesRepo.getServiceById(id);
+    if (existing) {
+      const targetEnv = input.environment ?? existing.environment;
+      const duplicate = await servicesRepo.findByNameAndEnvironment(input.name, targetEnv);
+      if (duplicate && duplicate.id !== id) {
+        throw new ConflictError(
+          `A service with name '${input.name}' already exists in environment '${targetEnv}'`
+        );
+      }
+    }
   }
 
-  if (input.baseUrl !== undefined) {
-    setClauses.push(`base_url = $${paramIndex++}`);
-    params.push(input.baseUrl);
+  const updated = await servicesRepo.updateService(id, input);
+  if (updated) {
+    await cacheService.invalidateServiceCache(id);
   }
-
-  if (input.healthCheckPath !== undefined) {
-    setClauses.push(`health_check_path = $${paramIndex++}`);
-    params.push(input.healthCheckPath);
-  }
-
-  if (input.environment !== undefined) {
-    setClauses.push(`environment = $${paramIndex++}`);
-    params.push(input.environment);
-  }
-
-  if (input.checkIntervalSeconds !== undefined) {
-    setClauses.push(`check_interval_seconds = $${paramIndex++}`);
-    params.push(input.checkIntervalSeconds);
-  }
-
-  if (input.timeoutMs !== undefined) {
-    setClauses.push(`timeout_ms = $${paramIndex++}`);
-    params.push(input.timeoutMs);
-  }
-
-  if (setClauses.length === 0) {
-    // If no fields to update, fetch current state
-    return getServiceById(id);
-  }
-
-  setClauses.push(`updated_at = NOW()`);
-  params.push(id);
-  const idPlaceholder = `$${paramIndex}`;
-
-  const sql = `
-    UPDATE services
-    SET ${setClauses.join(", ")}
-    WHERE id = ${idPlaceholder}
-    RETURNING
-      id,
-      name,
-      base_url,
-      health_check_path,
-      environment,
-      check_interval_seconds,
-      timeout_ms,
-      created_at,
-      updated_at;
-  `;
-
-  const result = await query<ServiceRow>(sql, params);
-
-  if (result.rows.length === 0) {
-    return null;
-  }
-
-  return mapRowToService(result.rows[0]);
+  return updated;
 }
 
 export async function deleteService(id: string): Promise<boolean> {
-  const sql = `
-    DELETE FROM services
-    WHERE id = $1;
-  `;
-
-  const result = await query(sql, [id]);
-  return (result.rowCount ?? 0) > 0;
+  const deleted = await servicesRepo.deleteService(id);
+  if (deleted) {
+    await cacheService.invalidateServiceCache(id);
+  }
+  return deleted;
 }

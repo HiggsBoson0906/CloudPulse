@@ -8,6 +8,7 @@ export interface ServiceRecord {
   environment: ServiceEnvironment;
   checkIntervalSeconds: number;
   timeoutMs: number;
+  isEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,6 +20,7 @@ export interface CreateServiceInput {
   environment: ServiceEnvironment;
   checkIntervalSeconds?: number;
   timeoutMs?: number;
+  isEnabled?: boolean;
 }
 
 export interface UpdateServiceInput {
@@ -28,6 +30,7 @@ export interface UpdateServiceInput {
   environment?: ServiceEnvironment;
   checkIntervalSeconds?: number;
   timeoutMs?: number;
+  isEnabled?: boolean;
 }
 
 export interface ServiceRow {
@@ -38,6 +41,7 @@ export interface ServiceRow {
   environment: string;
   check_interval_seconds: number;
   timeout_ms: number;
+  is_enabled: boolean;
   created_at: Date;
   updated_at: Date;
 }

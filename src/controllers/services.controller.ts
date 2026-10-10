@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import {
+  ConflictError,
   createService,
   deleteService,
   getServiceById,
@@ -66,6 +67,7 @@ export async function createServiceHandler(req: Request, res: Response): Promise
     const checkIntervalSeconds =
       body.checkIntervalSeconds ?? body.check_interval_seconds;
     const timeoutMs = body.timeoutMs ?? body.timeout_ms;
+    const isEnabled = body.isEnabled ?? body.is_enabled;
 
     if (typeof name !== "string" || name.trim().length === 0) {
       errors.push("Field 'name' is required and must be a non-empty string");
@@ -89,16 +91,16 @@ export async function createServiceHandler(req: Request, res: Response): Promise
       );
     }
 
-    if (checkIntervalSeconds !== undefined) {
-      if (!isValidPositiveInteger(checkIntervalSeconds)) {
-        errors.push("Field 'checkIntervalSeconds' must be a positive integer");
-      }
+    if (checkIntervalSeconds !== undefined && !isValidPositiveInteger(checkIntervalSeconds)) {
+      errors.push("Field 'checkIntervalSeconds' must be a positive integer");
     }
 
-    if (timeoutMs !== undefined) {
-      if (!isValidPositiveInteger(timeoutMs)) {
-        errors.push("Field 'timeoutMs' must be a positive integer");
-      }
+    if (timeoutMs !== undefined && !isValidPositiveInteger(timeoutMs)) {
+      errors.push("Field 'timeoutMs' must be a positive integer");
+    }
+
+    if (isEnabled !== undefined && typeof isEnabled !== "boolean") {
+      errors.push("Field 'isEnabled' must be a boolean");
     }
 
     if (errors.length > 0) {
@@ -113,19 +115,35 @@ export async function createServiceHandler(req: Request, res: Response): Promise
       environment: environment as ServiceEnvironment,
       checkIntervalSeconds: checkIntervalSeconds as number | undefined,
       timeoutMs: timeoutMs as number | undefined,
+      isEnabled: isEnabled as boolean | undefined,
     };
 
     const created = await createService(input);
     res.status(201).json(created);
   } catch (error: unknown) {
+    if (error instanceof ConflictError) {
+      res.status(409).json({ error: "Conflict", message: error.message });
+      return;
+    }
     console.error("[Controller] createServiceHandler failed:", error);
     res.status(500).json({ error: "Failed to create service" });
   }
 }
 
-export async function listServicesHandler(_req: Request, res: Response): Promise<void> {
+export async function listServicesHandler(req: Request, res: Response): Promise<void> {
   try {
-    const services = await listServices();
+    const envQuery = req.query.environment as string | undefined;
+    const enabledQuery = req.query.isEnabled as string | undefined;
+
+    const filter: { environment?: string; isEnabled?: boolean } = {};
+    if (envQuery && isValidEnvironment(envQuery)) {
+      filter.environment = envQuery;
+    }
+    if (enabledQuery !== undefined) {
+      filter.isEnabled = enabledQuery === "true";
+    }
+
+    const services = await listServices(filter);
     res.status(200).json(services);
   } catch (error: unknown) {
     console.error("[Controller] listServicesHandler failed:", error);
@@ -184,6 +202,7 @@ export async function updateServiceHandler(req: Request, res: Response): Promise
     const checkIntervalSeconds =
       body.checkIntervalSeconds ?? body.check_interval_seconds;
     const timeoutMs = body.timeoutMs ?? body.timeout_ms;
+    const isEnabled = body.isEnabled ?? body.is_enabled;
 
     if (name !== undefined) {
       fieldsProvided++;
@@ -243,6 +262,15 @@ export async function updateServiceHandler(req: Request, res: Response): Promise
       }
     }
 
+    if (isEnabled !== undefined) {
+      fieldsProvided++;
+      if (typeof isEnabled !== "boolean") {
+        errors.push("Field 'isEnabled' must be a boolean");
+      } else {
+        updateInput.isEnabled = isEnabled;
+      }
+    }
+
     if (fieldsProvided === 0) {
       res.status(400).json({ error: "At least one update field must be provided" });
       return;
@@ -262,6 +290,10 @@ export async function updateServiceHandler(req: Request, res: Response): Promise
 
     res.status(200).json(updated);
   } catch (error: unknown) {
+    if (error instanceof ConflictError) {
+      res.status(409).json({ error: "Conflict", message: error.message });
+      return;
+    }
     console.error("[Controller] updateServiceHandler failed:", error);
     res.status(500).json({ error: "Failed to update service" });
   }

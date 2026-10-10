@@ -6,14 +6,21 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
-    "migrate": "node dist/db/migrate.js"
+    "migrate": "node dist/db/migrate.js",
+    "worker:monitor": "node dist/workers/monitoring.worker.js",
+    "worker:events": "node dist/workers/event-processor.worker.js",
+    "test": "node dist/tests/runner.js"
   },
   "dependencies": {
+    "dotenv": "^18.0.7",
     "express": "^4.21.2",
+    "ioredis": "^6.0.0",
+    "kafkajs": "^2.2.4",
     "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/ioredis": "^4.28.10",
     "@types/node": "^22.13.1",
     "@types/pg": "^8.23.1",
     "typescript": "^5.7.3"
