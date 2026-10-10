@@ -1,0 +1,21 @@
+{
+  "name": "cloudpulse",
+  "version": "0.1.0",
+  "description": "Cloud service monitoring and alerting platform",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "migrate": "node dist/db/migrate.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.1",
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.7.3"
+  }
+}
