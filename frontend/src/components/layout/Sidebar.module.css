@@ -1,0 +1,101 @@
+.sidebar {
+  width: var(--cp-sidebar-width);
+  background-color: var(--cp-bg-surface);
+  border-right: 1px solid var(--cp-border-subtle);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 12px;
+  transition: width var(--cp-transition-drawer);
+  flex-shrink: 0;
+}
+
+.sidebarCollapsed {
+  width: var(--cp-sidebar-collapsed-width);
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--cp-radius-md);
+  color: var(--cp-text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--cp-transition-micro);
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+
+.navItem:hover {
+  background-color: var(--cp-bg-surface-elevated);
+  color: var(--cp-text-primary);
+  border-color: var(--cp-border-subtle);
+}
+
+.navItemActive {
+  background-color: var(--cp-bg-surface-elevated);
+  color: #38BDF8;
+  border-color: rgba(56, 189, 248, 0.2);
+  font-weight: 600;
+}
+
+.navIcon {
+  flex-shrink: 0;
+}
+
+.navLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge {
+  margin-left: auto;
+  background-color: var(--cp-status-down-bg);
+  border: 1px solid var(--cp-status-down-border);
+  color: var(--cp-status-down);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-family: var(--cp-font-mono);
+}
+
+.bottomSection {
+  border-top: 1px solid var(--cp-border-subtle);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.collapseToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: var(--cp-radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--cp-text-muted);
+  cursor: pointer;
+  transition: all var(--cp-transition-micro);
+}
+
+.collapseToggle:hover {
+  background-color: var(--cp-bg-surface-elevated);
+  color: var(--cp-text-primary);
+  border-color: var(--cp-border-subtle);
+}

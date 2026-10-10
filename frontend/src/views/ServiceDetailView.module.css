@@ -1,0 +1,208 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.headerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.leftHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.backBtn {
+  background: transparent;
+  border: 1px solid var(--cp-border-subtle);
+  border-radius: var(--cp-radius-sm);
+  color: var(--cp-text-secondary);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--cp-transition-micro);
+}
+
+.backBtn:hover {
+  background-color: var(--cp-bg-surface-elevated);
+  color: var(--cp-text-primary);
+  border-color: var(--cp-border-strong);
+}
+
+.serviceTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--cp-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.windowTabs {
+  display: flex;
+  background-color: var(--cp-bg-surface);
+  border: 1px solid var(--cp-border-subtle);
+  border-radius: var(--cp-radius-md);
+  padding: 2px;
+}
+
+.tabBtn {
+  background: transparent;
+  border: none;
+  color: var(--cp-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--cp-radius-sm);
+  cursor: pointer;
+  transition: all var(--cp-transition-micro);
+}
+
+.tabBtn:hover {
+  color: var(--cp-text-primary);
+}
+
+.tabBtnActive {
+  background-color: var(--cp-bg-surface-elevated);
+  color: #38BDF8;
+  font-weight: 600;
+}
+
+/* Telemetry Quad Grid */
+.telemetryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.metricCard {
+  background-color: var(--cp-bg-surface);
+  border: 1px solid var(--cp-border-subtle);
+  border-radius: var(--cp-radius-md);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metricLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cp-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metricValue {
+  font-family: var(--cp-font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--cp-text-primary);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.metricUnit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cp-text-muted);
+}
+
+/* Chart Container */
+.chartSection {
+  background-color: var(--cp-bg-surface);
+  border: 1px solid var(--cp-border-subtle);
+  border-radius: var(--cp-radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chartHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chartTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cp-text-primary);
+}
+
+.chartCanvasContainer {
+  height: 220px;
+  width: 100%;
+  position: relative;
+}
+
+/* Table Section */
+.tableSection {
+  background-color: var(--cp-bg-surface);
+  border: 1px solid var(--cp-border-subtle);
+  border-radius: var(--cp-radius-md);
+  overflow: hidden;
+}
+
+.sectionHeader {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--cp-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  max-height: 400px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.th {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cp-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--cp-border-subtle);
+  background-color: var(--cp-bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.tr {
+  height: var(--cp-row-height);
+  border-bottom: 1px solid var(--cp-border-subtle);
+  transition: background-color var(--cp-transition-micro);
+}
+
+.tr:hover {
+  background-color: var(--cp-bg-surface-elevated);
+}
+
+.td {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--cp-text-secondary);
+  vertical-align: middle;
+}

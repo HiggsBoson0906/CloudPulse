@@ -1,0 +1,85 @@
+:root {
+  /* Color Palette - Dark Obsidian Foundation */
+  --cp-bg-canvas: #0B0F17;
+  --cp-bg-surface: #111827;
+  --cp-bg-surface-elevated: #182234;
+  --cp-bg-well: #0E1420;
+  
+  /* Borders */
+  --cp-border-subtle: rgba(255, 255, 255, 0.08);
+  --cp-border-strong: rgba(255, 255, 255, 0.16);
+  --cp-border-focus: #38BDF8;
+  
+  /* Text */
+  --cp-text-primary: #F8FAFC;
+  --cp-text-secondary: #94A3B8;
+  --cp-text-muted: #64748B;
+  
+  /* Semantic Status Tokens */
+  --cp-status-up: #10B981;
+  --cp-status-up-bg: rgba(16, 185, 129, 0.12);
+  --cp-status-up-border: rgba(16, 185, 129, 0.3);
+  
+  --cp-status-degraded: #F59E0B;
+  --cp-status-degraded-bg: rgba(245, 158, 11, 0.12);
+  --cp-status-degraded-border: rgba(245, 158, 11, 0.3);
+  
+  --cp-status-down: #EF4444;
+  --cp-status-down-bg: rgba(239, 68, 68, 0.12);
+  --cp-status-down-border: rgba(239, 68, 68, 0.3);
+
+  /* Incident Lifecycle */
+  --cp-incident-open: #EF4444;
+  --cp-incident-open-bg: rgba(239, 68, 68, 0.12);
+  --cp-incident-ack: #F59E0B;
+  --cp-incident-ack-bg: rgba(245, 158, 11, 0.12);
+  --cp-incident-resolved: #06B6D4;
+  --cp-incident-resolved-bg: rgba(6, 182, 212, 0.12);
+
+  /* Alert Severity */
+  --cp-sev-low: #94A3B8;
+  --cp-sev-med: #3B82F6;
+  --cp-sev-high: #F59E0B;
+  --cp-sev-crit: #EF4444;
+
+  /* Typography */
+  --cp-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --cp-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  
+  /* Balanced Operational Dimensions (Density: 5-6) */
+  --cp-header-height: 52px;
+  --cp-sidebar-width: 220px;
+  --cp-sidebar-collapsed-width: 64px;
+  --cp-row-height: 44px;
+  --cp-input-height: 38px;
+  --cp-card-padding: 20px;
+  --cp-radius-sm: 4px;
+  --cp-radius-md: 6px;
+  --cp-radius-lg: 8px;
+
+  /* Shadows and Glows */
+  --cp-shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --cp-shadow-elevated: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  --cp-shadow-glow-cyan: 0 0 15px rgba(56, 189, 248, 0.25);
+  --cp-shadow-glow-emerald: 0 0 15px rgba(16, 185, 129, 0.25);
+  --cp-shadow-glow-rose: 0 0 15px rgba(239, 68, 68, 0.25);
+
+  /* Motion & Transitions */
+  --cp-transition-micro: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --cp-transition-spring: 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  --cp-transition-drawer: 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cp-transition-micro: 0ms !important;
+    --cp-transition-spring: 0ms !important;
+    --cp-transition-drawer: 0ms !important;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
