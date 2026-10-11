@@ -17,10 +17,25 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 const isProduction = import.meta.env.PROD;
 
+// Standard local development key matching docker-compose & local backend default
+export const DEV_DEFAULT_ADMIN_KEY = 'cp-admin-dev-key-32chars-prod-ready';
+
+let storedKey =
+  typeof localStorage !== 'undefined' ? localStorage.getItem('cloudpulse_api_key') : null;
+
+// In development, automatically migrate any legacy short dev key to the current dev key
+if (!isProduction && storedKey === 'cp-admin-dev-key') {
+  storedKey = DEV_DEFAULT_ADMIN_KEY;
+  try {
+    localStorage.setItem('cloudpulse_api_key', DEV_DEFAULT_ADMIN_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 let currentApiKey =
-  (typeof localStorage !== 'undefined' ? localStorage.getItem('cloudpulse_api_key') : null) ||
-  import.meta.env.VITE_API_KEY ||
-  (isProduction ? '' : 'cp-admin-dev-key');
+  storedKey ||
+  (isProduction ? '' : import.meta.env.VITE_API_KEY || DEV_DEFAULT_ADMIN_KEY);
 
 export function getApiKey(): string {
   return currentApiKey;
@@ -35,6 +50,13 @@ export function setApiKey(key: string): void {
       localStorage.removeItem('cloudpulse_api_key');
     }
   }
+}
+
+if (typeof window !== 'undefined') {
+  (window as unknown as { cloudpulse?: { setApiKey: typeof setApiKey; getApiKey: typeof getApiKey } }).cloudpulse = {
+    setApiKey,
+    getApiKey,
+  };
 }
 
 function getUrl(path: string): string {

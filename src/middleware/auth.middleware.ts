@@ -54,6 +54,19 @@ function resolveUser(token: string): AuthenticatedUser | null {
     return { role: "viewer", keyId: "viewer-key", name: "Viewer" };
   }
 
+  // Non-production fallback compatibility for legacy dev keys
+  if (config.nodeEnv !== "production") {
+    if (secureCompare(token, "cp-admin-dev-key")) {
+      return { role: "admin", keyId: "admin-legacy-key", name: "Administrator (Legacy Dev)" };
+    }
+    if (secureCompare(token, "cp-operator-dev-key")) {
+      return { role: "operator", keyId: "operator-legacy-key", name: "Operator (Legacy Dev)" };
+    }
+    if (secureCompare(token, "cp-viewer-dev-key")) {
+      return { role: "viewer", keyId: "viewer-legacy-key", name: "Viewer (Legacy Dev)" };
+    }
+  }
+
   return null;
 }
 

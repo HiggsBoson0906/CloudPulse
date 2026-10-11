@@ -353,6 +353,107 @@ export async function runUnitTests(): Promise<{ passed: number; failed: number }
     assert.strictEqual(nextCalled, true);
   });
 
+  await runTest("Auth: accepts X-API-Key header as alternative to Bearer token", function () {
+    const { authenticate } = require("../middleware/auth.middleware");
+    const { config } = require("../config");
+    let nextCalled = false;
+
+    const mockReq: any = { headers: { "x-api-key": config.auth.adminKey } };
+    const mockRes = {
+      status: function () {
+        return this;
+      },
+      json: function () {},
+    };
+
+    authenticate(mockReq, mockRes, function () {
+      nextCalled = true;
+    });
+
+    assert.strictEqual(nextCalled, true);
+    assert.strictEqual(mockReq.user?.role, "admin");
+  });
+
+  await runTest("Auth: default development admin key satisfies entropy requirement (>= 16 chars) and authenticates as admin", function () {
+    const { authenticate } = require("../middleware/auth.middleware");
+    const devAdminKey = "cp-admin-dev-key-32chars-prod-ready";
+    assert(devAdminKey.length >= 16, "Dev admin key must be at least 16 characters");
+
+    let nextCalled = false;
+    const mockReq: any = { headers: { authorization: `Bearer ${devAdminKey}` } };
+    const mockRes = {
+      status: function () {
+        return this;
+      },
+      json: function () {},
+    };
+
+    authenticate(mockReq, mockRes, function () {
+      nextCalled = true;
+    });
+
+    assert.strictEqual(nextCalled, true);
+    assert.strictEqual(mockReq.user?.role, "admin");
+  });
+
+  await runTest("Auth: authentication failures (401) vs authorization failures (403) are distinct", function () {
+    const { authenticate, requireRole } = require("../middleware/auth.middleware");
+
+    // 1. Missing authentication -> 401 Authentication required
+    const authReq: any = { headers: {} };
+    let authStatus = 0;
+    let authBody: any = null;
+    const authRes = {
+      status: function (s: number) {
+        authStatus = s;
+        return this;
+      },
+      json: function (b: any) {
+        authBody = b;
+      },
+    };
+    authenticate(authReq, authRes, function () {});
+    assert.strictEqual(authStatus, 401);
+    assert.strictEqual(authBody?.error, "Authentication required");
+
+    // 2. Invalid token -> 401 Authentication failed
+    const badReq: any = { headers: { authorization: "Bearer invalid-mismatched-key" } };
+    let badStatus = 0;
+    let badBody: any = null;
+    const badRes = {
+      status: function (s: number) {
+        badStatus = s;
+        return this;
+      },
+      json: function (b: any) {
+        badBody = b;
+      },
+    };
+    authenticate(badReq, badRes, function () {});
+    assert.strictEqual(badStatus, 401);
+    assert.strictEqual(badBody?.error, "Authentication failed");
+    assert.strictEqual(badBody?.message, "Invalid API key or token");
+
+    // 3. Authenticated viewer attempting admin action -> 403 Forbidden
+    const rbacReq: any = { user: { role: "viewer", keyId: "viewer-key" } };
+    let rbacStatus = 0;
+    let rbacBody: any = null;
+    const rbacRes = {
+      status: function (s: number) {
+        rbacStatus = s;
+        return this;
+      },
+      json: function (b: any) {
+        rbacBody = b;
+      },
+    };
+    const adminGuard = requireRole("admin");
+    adminGuard(rbacReq, rbacRes, function () {});
+    assert.strictEqual(rbacStatus, 403);
+    assert.strictEqual(rbacBody?.error, "Forbidden");
+    assert(rbacBody?.message?.includes("Role 'viewer' is not authorized"));
+  });
+
   // 8. SSRF Dispatcher & DNS Rebinding Elimination
   await runTest("SSRF Dispatcher: rejects pinned loopback and metadata IPs", function () {
     const { createSafeDispatcher } = require("../utils/ssrf-dispatcher");

@@ -44,7 +44,7 @@ export function validateSystemConfig(): ConfigValidationResult {
     // Development / test warnings
     if (!process.env.CLOUDPULSE_ADMIN_API_KEY && !process.env.ADMIN_API_KEY) {
       warnings.push(
-        "Using fallback development admin key ('cp-admin-dev-key'). Set CLOUDPULSE_ADMIN_API_KEY for production."
+        "Using fallback development admin key ('cp-admin-dev-key-32chars-prod-ready'). Set CLOUDPULSE_ADMIN_API_KEY for production."
       );
     }
     if (config.monitoring.allowPrivateTargets) {

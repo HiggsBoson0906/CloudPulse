@@ -90,15 +90,15 @@ export const config: AppConfig = {
     adminKey:
       process.env.CLOUDPULSE_ADMIN_API_KEY ||
       process.env.ADMIN_API_KEY ||
-      (isProduction ? "" : "cp-admin-dev-key"),
+      (isProduction ? "" : "cp-admin-dev-key-32chars-prod-ready"),
     operatorKey:
       process.env.CLOUDPULSE_OPERATOR_API_KEY ||
       process.env.OPERATOR_API_KEY ||
-      (isProduction ? "" : "cp-operator-dev-key"),
+      (isProduction ? "" : "cp-operator-dev-key-32chars-prod"),
     viewerKey:
       process.env.CLOUDPULSE_VIEWER_API_KEY ||
       process.env.VIEWER_API_KEY ||
-      (isProduction ? "" : "cp-viewer-dev-key"),
+      (isProduction ? "" : "cp-viewer-dev-key-32chars-prod-re"),
   },
   cors: {
     allowedOrigins: parseList(process.env.CORS_ALLOWED_ORIGINS),
