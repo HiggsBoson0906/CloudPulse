@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, Clock, RefreshCw } from 'lucide-react';
+import { Activity, Clock, Key, RefreshCw } from 'lucide-react';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -9,6 +9,8 @@ interface HeaderProps {
   onIntervalChange: (interval: number) => void;
   onManualRefresh: () => void;
   isRefreshing: boolean;
+  hasApiKey: boolean;
+  onOpenKeyModal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,6 +20,8 @@ export const Header: React.FC<HeaderProps> = ({
   onIntervalChange,
   onManualRefresh,
   isRefreshing,
+  hasApiKey,
+  onOpenKeyModal,
 }) => {
   const [utcTime, setUtcTime] = useState<string>('');
 
@@ -89,6 +93,17 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <RefreshCw size={13} className={isRefreshing ? styles.spinning : ''} />
             <span>Refresh</span>
+          </button>
+
+          <button
+            className={styles.keyBtn}
+            onClick={onOpenKeyModal}
+            title={hasApiKey ? 'API Key Configured (Click to change)' : 'API Key Missing (Click to configure)'}
+            aria-label="Manage API Authentication Key"
+          >
+            <Key size={13} />
+            <span>{hasApiKey ? 'Key Active' : 'Set API Key'}</span>
+            <span className={hasApiKey ? styles.keyDotActive : styles.keyDotMissing} />
           </button>
         </div>
       </div>

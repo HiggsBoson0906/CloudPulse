@@ -139,6 +139,48 @@
   cursor: not-allowed;
 }
 
+.keyBtn {
+  background-color: var(--cp-bg-well);
+  color: var(--cp-text-secondary);
+  border: 1px solid var(--cp-border-subtle);
+  border-radius: var(--cp-radius-sm);
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--cp-transition-micro);
+}
+
+.keyBtn:hover {
+  background-color: var(--cp-bg-surface-elevated);
+  border-color: var(--cp-border-strong);
+  color: var(--cp-text-primary);
+}
+
+.keyDotActive {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--cp-status-up);
+}
+
+.keyDotMissing {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--cp-status-down);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
 .spinning {
   animation: spin 1s linear infinite;
 }

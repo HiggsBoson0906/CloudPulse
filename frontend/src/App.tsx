@@ -8,6 +8,7 @@ import { ServiceDetailView } from './views/ServiceDetailView';
 import { AlertsView } from './views/AlertsView';
 import { IncidentsView } from './views/IncidentsView';
 import { Toast, type ToastMessage } from './components/common/Toast';
+import { ApiKeyModal } from './components/common/ApiKeyModal';
 import { api } from './api/client';
 import { fetchLatestChecksBounded } from './utils/health-cache';
 import type {
@@ -26,6 +27,8 @@ import appStyles from './components/layout/AppShell.module.css';
 export function App() {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(() => Boolean(api.getApiKey()));
 
   // Platform Telemetry State
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -123,6 +126,10 @@ export function App() {
             const checksMap = await fetchLatestChecksBounded(svcData, 3);
             if (!ignore) setLatestChecks(checksMap);
           }
+
+          if (!ignore && !api.getApiKey()) {
+            showToast('info', 'No API key configured. Click "Set API Key" in the top bar to connect.');
+          }
         }
       } catch (err: unknown) {
         console.error('Failed to load initial platform telemetry:', err);
@@ -136,7 +143,7 @@ export function App() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [showToast]);
 
   // Tab Visibility Change Listener: pauses polling when hidden, resumes immediately when visible
   useEffect(() => {
@@ -188,6 +195,18 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  function handleAuthError(err: unknown) {
+    const msg = err instanceof Error ? err.message : '';
+    if (
+      msg.includes('Authorization') ||
+      msg.includes('Authentication') ||
+      msg.includes('API key') ||
+      msg.includes('token')
+    ) {
+      setIsKeyModalOpen(true);
+    }
+  }
+
   // Service Mutations with Feedback
   async function handleCreateService(input: CreateServiceInput) {
     try {
@@ -197,6 +216,7 @@ export function App() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to register service';
       showToast('error', msg);
+      handleAuthError(err);
       throw err;
     }
   }
@@ -209,6 +229,7 @@ export function App() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to update service';
       showToast('error', msg);
+      handleAuthError(err);
       throw err;
     }
   }
@@ -224,6 +245,7 @@ export function App() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to delete service';
       showToast('error', msg);
+      handleAuthError(err);
       throw err;
     }
   }
@@ -298,6 +320,8 @@ export function App() {
         onIntervalChange={setAutoRefreshInterval}
         onManualRefresh={() => fetchAllData(true)}
         isRefreshing={isRefreshing}
+        hasApiKey={hasApiKey}
+        onOpenKeyModal={() => setIsKeyModalOpen(true)}
       />
 
       <div className={appStyles.body}>
@@ -363,6 +387,17 @@ export function App() {
 
       {/* Accessible Toast Notification System */}
       <Toast toasts={toasts} onDismiss={dismissToast} />
+
+      {/* API Key Configuration Modal */}
+      <ApiKeyModal
+        isOpen={isKeyModalOpen}
+        onClose={() => setIsKeyModalOpen(false)}
+        onKeySaved={(key) => {
+          setHasApiKey(Boolean(key));
+          showToast('success', key ? 'API key active. Refreshing telemetry...' : 'API key cleared');
+          fetchAllData(true);
+        }}
+      />
     </div>
   );
 }
