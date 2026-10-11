@@ -367,14 +367,13 @@ export function App() {
         }
         failingServicesCount={Math.max(failingCount + degradedCount, probeFailingCount)}
         totalServicesCount={summary?.totalServices ?? services.length}
+        hasDegradation={hasDegradation}
         isMobileOpen={isMobileNavOpen}
         onCloseMobile={() => setIsMobileNavOpen(false)}
       />
 
       <div className={appStyles.mainWrapper}>
         <Header
-          activeIncidentsCount={activeIncidentsCount}
-          hasDegradation={hasDegradation}
           autoRefreshInterval={autoRefreshInterval}
           onIntervalChange={setAutoRefreshInterval}
           onManualRefresh={() => fetchAllData(true)}

@@ -34,8 +34,6 @@ function CloudLoopLogo({ size = 24 }: { size?: number }) {
 }
 
 interface HeaderProps {
-  activeIncidentsCount: number;
-  hasDegradation?: boolean;
   autoRefreshInterval: number; // in seconds (0 = paused)
   onIntervalChange: (interval: number) => void;
   onManualRefresh: () => void;
@@ -48,8 +46,6 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  activeIncidentsCount,
-  hasDegradation = false,
   autoRefreshInterval,
   onIntervalChange,
   onManualRefresh,
@@ -93,23 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
           <CloudLoopLogo size={24} />
           <span>CloudPulse</span>
         </div>
-
-        {activeIncidentsCount > 0 ? (
-          <div className={`${styles.statusPill} ${styles.statusIncident}`} role="status">
-            <span className={styles.statusDot} />
-            <span>{activeIncidentsCount} Active Incident{activeIncidentsCount > 1 ? 's' : ''}</span>
-          </div>
-        ) : hasDegradation ? (
-          <div className={`${styles.statusPill} ${styles.statusDegraded}`} role="status">
-            <span className={styles.statusDot} />
-            <span>Degraded Service</span>
-          </div>
-        ) : (
-          <div className={`${styles.statusPill} ${styles.statusOperational}`} role="status">
-            <span className={styles.statusDot} />
-            <span>All Systems Operational</span>
-          </div>
-        )}
+      
       </div>
 
       <div className={styles.rightSection}>

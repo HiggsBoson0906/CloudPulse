@@ -289,7 +289,9 @@
 }
 
 .navItemWrapper:hover .tooltip,
-.navItemWrapper:focus-within .tooltip {
+.navItemWrapper:focus-within .tooltip,
+.statusWidgetWrapper:hover .tooltip,
+.statusWidgetWrapper:focus-within .tooltip {
   opacity: 1;
   transform: translateY(-50%) translateX(0);
 }
@@ -368,6 +370,203 @@
   flex-direction: column;
   gap: 8px;
   padding-bottom: 16px;
+}
+
+/* ── System Status & Incident Widget (Non-Pill Terminal Style) ── */
+.statusWidgetWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+}
+
+.railCompact .statusWidgetWrapper {
+  padding: 0 8px;
+}
+
+.statusWidgetBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background-color: var(--cp-bg-well);
+  border: 1px solid var(--cp-border-subtle);
+  border-radius: var(--cp-radius-md);
+  padding: 6px 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--cp-transition-spring);
+}
+
+.railCompact .statusWidgetBtn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+}
+
+.statusWidgetBtn:hover {
+  background-color: var(--cp-bg-surface-elevated);
+  border-color: var(--cp-border-strong);
+  box-shadow: var(--cp-shadow-subtle);
+}
+
+.railCompact .statusWidgetBtn:hover {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Squircle Icon Box */
+.statusIconSquircle {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+  transition: all var(--cp-transition-spring);
+}
+
+.railCompact .statusIconSquircle {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.iconSquircleIncident {
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--cp-status-down);
+}
+
+.iconSquircleDegraded {
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--cp-status-degraded);
+}
+
+.iconSquircleOperational {
+  background-color: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  color: var(--cp-status-up);
+}
+
+.railCompact .statusWidgetBtn:hover .statusIconSquircle {
+  border-radius: 12px;
+  filter: brightness(1.1);
+  box-shadow: var(--cp-shadow-subtle);
+}
+
+/* Pulsing Status Dot */
+.statusPulseDot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.railCompact .statusPulseDot {
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+}
+
+.pulseDotIncident {
+  background-color: var(--cp-status-down);
+  box-shadow: 0 0 6px var(--cp-status-down);
+  animation: pulseIncident 1.6s ease-in-out infinite;
+}
+
+.pulseDotDegraded {
+  background-color: var(--cp-status-degraded);
+  box-shadow: 0 0 5px var(--cp-status-degraded);
+}
+
+.pulseDotOperational {
+  background-color: var(--cp-status-up);
+  box-shadow: 0 0 5px var(--cp-status-up);
+}
+
+@keyframes pulseIncident {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+/* Expanded Text Layout */
+.statusWidgetText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  gap: 1px;
+}
+
+.statusWidgetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.statusWidgetTag {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cp-text-muted);
+}
+
+.statusBadge {
+  font-family: var(--cp-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  background-color: var(--cp-status-down);
+  color: #ffffff;
+  padding: 0 4px;
+  border-radius: 3px;
+  line-height: 14px;
+}
+
+.statusWidgetTitle {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+
+.titleIncident {
+  color: var(--cp-status-down);
+}
+
+.titleDegraded {
+  color: var(--cp-status-degraded);
+}
+
+.titleOperational {
+  color: var(--cp-status-up);
+}
+
+.tooltipStatusText {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .utilityBtn {

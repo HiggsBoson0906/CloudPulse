@@ -4,6 +4,8 @@ import {
   Server,
   BellRing,
   AlertOctagon,
+  ShieldCheck,
+  AlertTriangle,
   PanelLeftClose,
   PanelLeftOpen,
   X,
@@ -20,6 +22,7 @@ interface SidebarProps {
   healthyServicesCount: number;
   failingServicesCount: number;
   totalServicesCount: number;
+  hasDegradation?: boolean;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
@@ -68,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   healthyServicesCount,
   failingServicesCount,
   totalServicesCount,
+  hasDegradation = false,
   isMobileOpen = false,
   onCloseMobile,
 }) => {
@@ -84,6 +88,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
     return false;
   });
+
+  const isIncident = activeIncidentsCount > 0;
+  const isDegraded = !isIncident && (hasDegradation || failingServicesCount > 0);
 
   useEffect(() => {
     try {
@@ -250,6 +257,106 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Bottom Utilities Stack */}
         <div className={styles.bottomSection}>
           <div className={styles.railDivider} role="separator" />
+
+          {/* System Status / Active Incidents Widget (Non-pill) */}
+          <div className={styles.statusWidgetWrapper}>
+            <button
+              type="button"
+              className={`${styles.statusWidgetBtn} ${
+                isIncident
+                  ? styles.statusIncidentBtn
+                  : isDegraded
+                  ? styles.statusDegradedBtn
+                  : styles.statusOperationalBtn
+              }`}
+              onClick={() => handleSelect(isIncident ? 'incidents' : 'overview')}
+              aria-label={
+                isIncident
+                  ? `${activeIncidentsCount} Active Incident${activeIncidentsCount > 1 ? 's' : ''}`
+                  : isDegraded
+                  ? 'Degraded Service'
+                  : 'All Systems Operational'
+              }
+            >
+              <div
+                className={`${styles.statusIconSquircle} ${
+                  isIncident
+                    ? styles.iconSquircleIncident
+                    : isDegraded
+                    ? styles.iconSquircleDegraded
+                    : styles.iconSquircleOperational
+                }`}
+              >
+                <span
+                  className={`${styles.statusPulseDot} ${
+                    isIncident
+                      ? styles.pulseDotIncident
+                      : isDegraded
+                      ? styles.pulseDotDegraded
+                      : styles.pulseDotOperational
+                  }`}
+                  aria-hidden="true"
+                />
+                {isIncident ? (
+                  <AlertOctagon size={16} />
+                ) : isDegraded ? (
+                  <AlertTriangle size={16} />
+                ) : (
+                  <ShieldCheck size={16} />
+                )}
+              </div>
+
+              {isExpanded && (
+                <div className={styles.statusWidgetText}>
+                  <div className={styles.statusWidgetHeader}>
+                    <span className={styles.statusWidgetTag}>System Status</span>
+                    {isIncident && (
+                      <span className={styles.statusBadge}>{activeIncidentsCount}</span>
+                    )}
+                  </div>
+                  <span
+                    className={`${styles.statusWidgetTitle} ${
+                      isIncident
+                        ? styles.titleIncident
+                        : isDegraded
+                        ? styles.titleDegraded
+                        : styles.titleOperational
+                    }`}
+                  >
+                    {isIncident
+                      ? `${activeIncidentsCount} Active Incident${activeIncidentsCount > 1 ? 's' : ''}`
+                      : isDegraded
+                      ? 'Degraded Service'
+                      : 'All Systems Operational'}
+                  </span>
+                </div>
+              )}
+            </button>
+
+            {/* Collapsed Mode Tooltip */}
+            {!isExpanded && (
+              <div className={styles.tooltip} role="tooltip">
+                <span
+                  className={`${styles.tooltipStatusText} ${
+                    isIncident
+                      ? styles.titleIncident
+                      : isDegraded
+                      ? styles.titleDegraded
+                      : styles.titleOperational
+                  }`}
+                >
+                  {isIncident
+                    ? `${activeIncidentsCount} Active Incident${activeIncidentsCount > 1 ? 's' : ''}`
+                    : isDegraded
+                    ? 'Degraded Service'
+                    : 'All Systems Operational'}
+                </span>
+                <span className={styles.tooltipShortcut}>
+                  {isIncident ? 'Incidents' : 'Overview'}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Expand / Collapse Control */}
           <div className={styles.navItemWrapper}>
