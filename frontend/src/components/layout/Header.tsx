@@ -1,6 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, Clock, Key, RefreshCw, Sun, Moon } from 'lucide-react';
+import { Clock, Key, RefreshCw, Sun, Moon } from 'lucide-react';
 import styles from './Header.module.css';
+
+/** Cloud-loop SVG logo matching the reference design */
+function CloudLoopLogo({ size = 22 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      {/* Cloud body */}
+      <path
+        d="M6.5 19C4.01 19 2 16.99 2 14.5C2 12.29 3.61 10.45 5.74 10.07C5.72 9.88 5.71 9.69 5.71 9.5C5.71 6.46 8.17 4 11.21 4C13.58 4 15.62 5.47 16.5 7.55C16.73 7.52 16.96 7.5 17.2 7.5C19.85 7.5 22 9.65 22 12.3C22 14.61 20.38 16.56 18.2 17.07"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Loop/infinity path inside cloud */}
+      <path
+        d="M9 16C9 16 8 14.5 9.5 13.5C11 12.5 13 13.5 13 15C13 16.5 15 17.5 16.5 16.5C18 15.5 17 14 17 14"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 interface HeaderProps {
   activeIncidentsCount: number;
@@ -47,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className={styles.header}>
       <div className={styles.leftSection}>
         <div className={styles.brand}>
-          <Activity size={20} className={styles.logoIcon} />
+          <CloudLoopLogo size={22} />
           <span>CloudPulse</span>
         </div>
 

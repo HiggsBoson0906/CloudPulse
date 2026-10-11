@@ -1,34 +1,35 @@
 .sidebar {
-  width: var(--cp-sidebar-width);
+  position: relative;
   background-color: var(--cp-bg-surface);
   border-right: 1px solid var(--cp-border-subtle);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 16px 12px;
+  padding: 12px 8px;
   transition: width var(--cp-transition-drawer);
   flex-shrink: 0;
+  overflow: visible;
 }
 
-.sidebarCollapsed {
-  width: var(--cp-sidebar-collapsed-width);
+.sidebarCollapsed .navLabel,
+.sidebarCollapsed .badge {
+  display: none;
 }
 
 .navGroup {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  flex: 1;
 }
 
 .navItem {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 10px 12px;
   border-radius: var(--cp-radius-md);
   color: var(--cp-text-secondary);
-  text-decoration: none;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   border: 1px solid transparent;
@@ -36,6 +37,7 @@
   background: transparent;
   width: 100%;
   text-align: left;
+  position: relative;
 }
 
 .navItem:hover {
@@ -45,10 +47,18 @@
 }
 
 .navItemActive {
-  background-color: var(--cp-bg-surface-elevated);
+  background-color: var(--cp-accent-teal-subtle);
   color: var(--cp-accent-teal);
   border-color: var(--cp-accent-teal-border);
   font-weight: 600;
+}
+
+.navIconWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .navIcon {
@@ -59,6 +69,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  font-size: 14px;
 }
 
 .badge {
@@ -68,34 +80,51 @@
   color: var(--cp-status-down);
   font-size: 11px;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 10px;
   font-family: var(--cp-font-mono);
+  flex-shrink: 0;
 }
 
-.bottomSection {
-  border-top: 1px solid var(--cp-border-subtle);
-  padding-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* Small dot badge shown in collapsed state */
+.dotBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--cp-status-down);
+  border: 2px solid var(--cp-bg-surface);
 }
 
-.collapseToggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px;
-  border-radius: var(--cp-radius-sm);
+/* Drag resize handle */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 20;
   background: transparent;
-  border: 1px solid transparent;
-  color: var(--cp-text-muted);
-  cursor: pointer;
-  transition: all var(--cp-transition-micro);
+  transition: background var(--cp-transition-micro);
 }
 
-.collapseToggle:hover {
-  background-color: var(--cp-bg-surface-elevated);
-  color: var(--cp-text-primary);
-  border-color: var(--cp-border-subtle);
+.resizeHandle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 40px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background var(--cp-transition-micro);
+}
+
+.resizeHandle:hover::after,
+.resizeHandle:active::after {
+  background: var(--cp-accent-teal);
 }

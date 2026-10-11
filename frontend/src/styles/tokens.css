@@ -52,16 +52,16 @@
   --cp-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   --cp-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
   
-  /* Balanced Operational Dimensions (Density: 5-6) */
-  --cp-header-height: 52px;
+  /* Operational Dimensions */
+  --cp-header-height: 58px;
   --cp-sidebar-width: 220px;
-  --cp-sidebar-collapsed-width: 64px;
-  --cp-row-height: 44px;
-  --cp-input-height: 38px;
-  --cp-card-padding: 20px;
-  --cp-radius-sm: 4px;
-  --cp-radius-md: 6px;
-  --cp-radius-lg: 8px;
+  --cp-sidebar-collapsed-width: 72px;
+  --cp-row-height: 48px;
+  --cp-input-height: 40px;
+  --cp-card-padding: 22px;
+  --cp-radius-sm: 5px;
+  --cp-radius-md: 8px;
+  --cp-radius-lg: 10px;
 
   /* Shadows and Glows */
   --cp-shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
