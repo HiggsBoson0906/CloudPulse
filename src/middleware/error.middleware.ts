@@ -3,7 +3,7 @@ import { logger } from "../utils/logger";
 import { ConflictError } from "../services/service-registry";
 
 export function errorHandler(
-  err: Error,
+  err: any,
   _req: Request,
   res: Response,
   _next: NextFunction
@@ -12,6 +12,15 @@ export function errorHandler(
     res.status(409).json({
       error: "Conflict",
       message: err.message,
+    });
+    return;
+  }
+
+  // Handle express.json() parse errors gracefully with 400 Bad Request
+  if (err && (err.type === "entity.parse.failed" || err.status === 400)) {
+    res.status(400).json({
+      error: "Bad Request",
+      message: "Malformed JSON in request payload",
     });
     return;
   }

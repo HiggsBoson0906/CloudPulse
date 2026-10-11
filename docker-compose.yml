@@ -70,6 +70,9 @@ services:
       REDIS_URL: "redis://redis:6379"
       KAFKA_BROKERS: "kafka:9092"
       ALLOW_PRIVATE_TARGETS: "false"
+      CLOUDPULSE_ADMIN_API_KEY: "${CLOUDPULSE_ADMIN_API_KEY:-cp-admin-dev-key-32chars-prod-ready}"
+      CLOUDPULSE_OPERATOR_API_KEY: "${CLOUDPULSE_OPERATOR_API_KEY:-cp-operator-dev-key-32chars-prod}"
+      CLOUDPULSE_VIEWER_API_KEY: "${CLOUDPULSE_VIEWER_API_KEY:-cp-viewer-dev-key-32chars-prod-re}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,6 +98,9 @@ services:
       WORKER_CONCURRENCY: "10"
       ALLOW_PRIVATE_TARGETS: "false"
       ALLOWED_PRIVATE_HOSTS: "mock-service"
+      CLOUDPULSE_ADMIN_API_KEY: "${CLOUDPULSE_ADMIN_API_KEY:-cp-admin-dev-key-32chars-prod-ready}"
+      CLOUDPULSE_OPERATOR_API_KEY: "${CLOUDPULSE_OPERATOR_API_KEY:-cp-operator-dev-key-32chars-prod}"
+      CLOUDPULSE_VIEWER_API_KEY: "${CLOUDPULSE_VIEWER_API_KEY:-cp-viewer-dev-key-32chars-prod-re}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,6 +125,9 @@ services:
       REDIS_URL: "redis://redis:6379"
       KAFKA_BROKERS: "kafka:9092"
       ALLOW_PRIVATE_TARGETS: "false"
+      CLOUDPULSE_ADMIN_API_KEY: "${CLOUDPULSE_ADMIN_API_KEY:-cp-admin-dev-key-32chars-prod-ready}"
+      CLOUDPULSE_OPERATOR_API_KEY: "${CLOUDPULSE_OPERATOR_API_KEY:-cp-operator-dev-key-32chars-prod}"
+      CLOUDPULSE_VIEWER_API_KEY: "${CLOUDPULSE_VIEWER_API_KEY:-cp-viewer-dev-key-32chars-prod-re}"
     depends_on:
       postgres:
         condition: service_healthy

@@ -23,6 +23,14 @@ export interface AppConfig {
     allowPrivateTargets: boolean;
     allowedPrivateHosts: string[];
   };
+  auth: {
+    adminKey: string;
+    operatorKey: string;
+    viewerKey: string;
+  };
+  cors: {
+    allowedOrigins: string[];
+  };
 }
 
 function parseList(val?: string): string[] {
@@ -44,6 +52,8 @@ function parseBrokers(val?: string): string[] {
     })
     .filter(Boolean);
 }
+
+const isProduction = (process.env.NODE_ENV || "development") === "production";
 
 export const config: AppConfig = {
   port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,
@@ -70,10 +80,27 @@ export const config: AppConfig = {
     defaultTimeoutMs: process.env.DEFAULT_TIMEOUT_MS
       ? parseInt(process.env.DEFAULT_TIMEOUT_MS, 10)
       : 5000,
-    allowPrivateTargets:
-      (process.env.NODE_ENV || "development") === "production"
-        ? process.env.ALLOW_PRIVATE_TARGETS_IN_PRODUCTION === "true"
-        : process.env.ALLOW_PRIVATE_TARGETS === "true",
+    // Production strictly disallows blanket private-target access; only explicit allowedPrivateHosts are permitted
+    allowPrivateTargets: isProduction
+      ? false
+      : process.env.ALLOW_PRIVATE_TARGETS === "true",
     allowedPrivateHosts: parseList(process.env.ALLOWED_PRIVATE_HOSTS),
+  },
+  auth: {
+    adminKey:
+      process.env.CLOUDPULSE_ADMIN_API_KEY ||
+      process.env.ADMIN_API_KEY ||
+      (isProduction ? "" : "cp-admin-dev-key"),
+    operatorKey:
+      process.env.CLOUDPULSE_OPERATOR_API_KEY ||
+      process.env.OPERATOR_API_KEY ||
+      (isProduction ? "" : "cp-operator-dev-key"),
+    viewerKey:
+      process.env.CLOUDPULSE_VIEWER_API_KEY ||
+      process.env.VIEWER_API_KEY ||
+      (isProduction ? "" : "cp-viewer-dev-key"),
+  },
+  cors: {
+    allowedOrigins: parseList(process.env.CORS_ALLOWED_ORIGINS),
   },
 };

@@ -7,15 +7,18 @@ import {
   listAlertsHandler,
   updateAlertRuleHandler,
 } from "../controllers/alerts.controller";
+import { requireAdmin, requireViewer } from "../middleware/auth.middleware";
 
 const router = Router();
 
-router.post("/alert-rules", createAlertRuleHandler);
-router.get("/alert-rules", listAlertRulesHandler);
-router.get("/alert-rules/:id", getAlertRuleByIdHandler);
-router.patch("/alert-rules/:id", updateAlertRuleHandler);
-router.delete("/alert-rules/:id", deleteAlertRuleHandler);
+// Viewer: read alert rules and firing alerts
+router.get("/alert-rules", requireViewer, listAlertRulesHandler);
+router.get("/alert-rules/:id", requireViewer, getAlertRuleByIdHandler);
+router.get("/alerts", requireViewer, listAlertsHandler);
 
-router.get("/alerts", listAlertsHandler);
+// Admin: create, update, and delete alert rules
+router.post("/alert-rules", requireAdmin, createAlertRuleHandler);
+router.patch("/alert-rules/:id", requireAdmin, updateAlertRuleHandler);
+router.delete("/alert-rules/:id", requireAdmin, deleteAlertRuleHandler);
 
 export default router;

@@ -1,11 +1,15 @@
 import app from "./app";
 import { config } from "./config";
+import { enforceStartupConfig } from "./config/validator";
 import { closePool } from "./db/pool";
 import { closeRedis } from "./redis/client";
 import { closeProducer } from "./kafka/producer";
 import { logger } from "./utils/logger";
 
 function startServer(): void {
+  // Enforce startup configuration validation before listening
+  enforceStartupConfig();
+
   const port = config.port;
   const serviceName = config.serviceName;
 

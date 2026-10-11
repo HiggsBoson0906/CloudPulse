@@ -8,6 +8,7 @@ import { closeProducer } from "../kafka/producer";
 import { closeRedis } from "../redis/client";
 import { closePool } from "../db/pool";
 import { HealthCheckEvent } from "../types/event.types";
+import { enforceStartupConfig } from "../config/validator";
 import { logger } from "../utils/logger";
 
 async function processHealthCheckEvent(event: HealthCheckEvent): Promise<void> {
@@ -53,6 +54,7 @@ async function processHealthCheckEvent(event: HealthCheckEvent): Promise<void> {
 }
 
 async function startProcessor(): Promise<void> {
+  enforceStartupConfig();
   logger.info("EventProcessor", "Starting Kafka event processor worker...");
 
   // Ensure Kafka topics are ready before consumer connects

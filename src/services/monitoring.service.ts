@@ -1,4 +1,5 @@
 import { validateTargetUrl } from "../utils/ssrf-validator";
+import { createSafeDispatcher } from "../utils/ssrf-dispatcher";
 import { ServiceRecord } from "../types/service.types";
 import { HealthCheckEventPayload } from "../types/event.types";
 import { config } from "../config";
@@ -94,7 +95,7 @@ export async function executeServiceCheck(service: ServiceRecord): Promise<Check
       allowedPrivateHosts: config.monitoring.allowedPrivateHosts,
     };
 
-    // 1. SSRF Validation
+    // 1. Initial SSRF Pre-Validation
     const ssrfCheck = await validateTargetUrl(rawTargetUrl, ssrfOptions);
     if (!ssrfCheck.isValid) {
       const latencyMs = Date.now() - startTime;
@@ -109,7 +110,7 @@ export async function executeServiceCheck(service: ServiceRecord): Promise<Check
       };
     }
 
-    // 2. Perform HTTP request with bounded redirects and SSRF re-validation
+    // 2. Perform HTTP request with bounded redirects and pinned IP dispatcher
     const maxRetries = 1;
     let attempt = 0;
     let finalStatusCode: number | null = null;
@@ -130,15 +131,23 @@ export async function executeServiceCheck(service: ServiceRecord): Promise<Check
 
         while (redirectCount <= maxRedirects) {
           // Re-validate current URL for SSRF (applies to initial URL and every redirect hop)
-          const ssrfCheck = await validateTargetUrl(currentUrl, ssrfOptions);
-          if (!ssrfCheck.isValid) {
+          const currentSsrfCheck = await validateTargetUrl(currentUrl, ssrfOptions);
+          if (!currentSsrfCheck.isValid) {
             finalStatusCode = null;
             isSuccess = false;
-            failureReason = `Blocked by SSRF protection: ${ssrfCheck.reason}`;
+            failureReason = `Blocked by SSRF protection: ${currentSsrfCheck.reason}`;
             break;
           }
 
-          const response = await fetch(currentUrl, {
+          // Create safe dispatcher pinned to validated IP, preventing DNS rebinding / TOCTOU
+          const safeDispatcher = createSafeDispatcher(currentUrl, {
+            allowPrivate: ssrfOptions.allowPrivate,
+            allowedPrivateHosts: ssrfOptions.allowedPrivateHosts,
+            pinnedIp: currentSsrfCheck.resolvedIp,
+            timeoutMs: service.timeoutMs,
+          });
+
+          const fetchInit: RequestInit & { dispatcher?: unknown } = {
             method: "GET",
             signal: controller.signal,
             headers: {
@@ -146,7 +155,10 @@ export async function executeServiceCheck(service: ServiceRecord): Promise<Check
               Accept: "*/*",
             },
             redirect: "manual",
-          });
+            dispatcher: safeDispatcher,
+          };
+
+          const response = await fetch(currentUrl, fetchInit);
 
           finalStatusCode = response.status;
 

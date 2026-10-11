@@ -15,8 +15,39 @@ import type {
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
+let currentApiKey =
+  (typeof localStorage !== 'undefined' ? localStorage.getItem('cloudpulse_api_key') : null) ||
+  import.meta.env.VITE_API_KEY ||
+  'cp-admin-dev-key';
+
+export function getApiKey(): string {
+  return currentApiKey;
+}
+
+export function setApiKey(key: string): void {
+  currentApiKey = key;
+  if (typeof localStorage !== 'undefined') {
+    if (key) {
+      localStorage.setItem('cloudpulse_api_key', key);
+    } else {
+      localStorage.removeItem('cloudpulse_api_key');
+    }
+  }
+}
+
 function getUrl(path: string): string {
   return `${BASE_URL}${path}`;
+}
+
+async function authFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(options.headers || {});
+  if (currentApiKey && !headers.has('Authorization') && !headers.has('X-API-Key')) {
+    headers.set('Authorization', `Bearer ${currentApiKey}`);
+  }
+  return fetch(getUrl(path), {
+    ...options,
+    headers,
+  });
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -24,7 +55,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
     let errorMsg = `HTTP ${res.status}: ${res.statusText}`;
     try {
       const body = await res.json();
-      if (body?.error) {
+      if (body?.message) {
+        errorMsg = body.message;
+      } else if (body?.error) {
         errorMsg = body.error;
       }
     } catch {
@@ -39,6 +72,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export const api = {
+  getApiKey,
+  setApiKey,
+
   // Readiness & Health
   async getReadiness(): Promise<{
     status: string;
@@ -46,30 +82,30 @@ export const api = {
     components: { database: string; redis: string };
     timestamp: string;
   }> {
-    const res = await fetch(getUrl('/ready'));
+    const res = await authFetch('/ready');
     return handleResponse(res);
   },
 
   // Dashboard
   async getDashboardSummary(): Promise<DashboardSummary> {
-    const res = await fetch(getUrl('/dashboard/summary'));
+    const res = await authFetch('/dashboard/summary');
     return handleResponse<DashboardSummary>(res);
   },
 
   // Services
   async getServices(environment?: ServiceEnvironment): Promise<ServiceRecord[]> {
     const path = environment ? `/services?environment=${encodeURIComponent(environment)}` : '/services';
-    const res = await fetch(getUrl(path));
+    const res = await authFetch(path);
     return handleResponse<ServiceRecord[]>(res);
   },
 
   async getService(id: string): Promise<ServiceRecord> {
-    const res = await fetch(getUrl(`/services/${encodeURIComponent(id)}`));
+    const res = await authFetch(`/services/${encodeURIComponent(id)}`);
     return handleResponse<ServiceRecord>(res);
   },
 
   async createService(input: CreateServiceInput): Promise<ServiceRecord> {
-    const res = await fetch(getUrl('/services'), {
+    const res = await authFetch('/services', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -78,7 +114,7 @@ export const api = {
   },
 
   async updateService(id: string, input: UpdateServiceInput): Promise<ServiceRecord> {
-    const res = await fetch(getUrl(`/services/${encodeURIComponent(id)}`), {
+    const res = await authFetch(`/services/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -87,7 +123,7 @@ export const api = {
   },
 
   async deleteService(id: string): Promise<void> {
-    const res = await fetch(getUrl(`/services/${encodeURIComponent(id)}`), {
+    const res = await authFetch(`/services/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
     return handleResponse<void>(res);
@@ -95,24 +131,24 @@ export const api = {
 
   // Metrics & Checks
   async getServiceMetrics(id: string, window: MetricWindow = '15m'): Promise<ServiceMetrics> {
-    const res = await fetch(getUrl(`/services/${encodeURIComponent(id)}/metrics?window=${encodeURIComponent(window)}`));
+    const res = await authFetch(`/services/${encodeURIComponent(id)}/metrics?window=${encodeURIComponent(window)}`);
     return handleResponse<ServiceMetrics>(res);
   },
 
   async getServiceChecks(id: string, limit = 50): Promise<HealthCheckResult[]> {
-    const res = await fetch(getUrl(`/services/${encodeURIComponent(id)}/checks?limit=${limit}`));
+    const res = await authFetch(`/services/${encodeURIComponent(id)}/checks?limit=${limit}`);
     return handleResponse<HealthCheckResult[]>(res);
   },
 
   // Alert Rules & Alerts
   async getAlertRules(serviceId?: string): Promise<AlertRule[]> {
     const path = serviceId ? `/alert-rules?serviceId=${encodeURIComponent(serviceId)}` : '/alert-rules';
-    const res = await fetch(getUrl(path));
+    const res = await authFetch(path);
     return handleResponse<AlertRule[]>(res);
   },
 
   async createAlertRule(input: CreateAlertRuleInput): Promise<AlertRule> {
-    const res = await fetch(getUrl('/alert-rules'), {
+    const res = await authFetch('/alert-rules', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -121,7 +157,7 @@ export const api = {
   },
 
   async deleteAlertRule(id: string): Promise<void> {
-    const res = await fetch(getUrl(`/alert-rules/${encodeURIComponent(id)}`), {
+    const res = await authFetch(`/alert-rules/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
     return handleResponse<void>(res);
@@ -132,7 +168,7 @@ export const api = {
     if (params?.serviceId) searchParams.set('serviceId', params.serviceId);
     if (params?.status) searchParams.set('status', params.status);
     const qs = searchParams.toString();
-    const res = await fetch(getUrl(qs ? `/alerts?${qs}` : '/alerts'));
+    const res = await authFetch(qs ? `/alerts?${qs}` : '/alerts');
     return handleResponse<Alert[]>(res);
   },
 
@@ -142,24 +178,24 @@ export const api = {
     if (params?.serviceId) searchParams.set('serviceId', params.serviceId);
     if (params?.status) searchParams.set('status', params.status);
     const qs = searchParams.toString();
-    const res = await fetch(getUrl(qs ? `/incidents?${qs}` : '/incidents'));
+    const res = await authFetch(qs ? `/incidents?${qs}` : '/incidents');
     return handleResponse<Incident[]>(res);
   },
 
   async getIncident(id: string): Promise<Incident> {
-    const res = await fetch(getUrl(`/incidents/${encodeURIComponent(id)}`));
+    const res = await authFetch(`/incidents/${encodeURIComponent(id)}`);
     return handleResponse<Incident>(res);
   },
 
   async acknowledgeIncident(id: string): Promise<Incident> {
-    const res = await fetch(getUrl(`/incidents/${encodeURIComponent(id)}/acknowledge`), {
+    const res = await authFetch(`/incidents/${encodeURIComponent(id)}/acknowledge`, {
       method: 'POST',
     });
     return handleResponse<Incident>(res);
   },
 
   async resolveIncident(id: string): Promise<Incident> {
-    const res = await fetch(getUrl(`/incidents/${encodeURIComponent(id)}/resolve`), {
+    const res = await authFetch(`/incidents/${encodeURIComponent(id)}/resolve`, {
       method: 'POST',
     });
     return handleResponse<Incident>(res);

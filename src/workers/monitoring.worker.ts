@@ -1,4 +1,5 @@
 import { config } from "../config";
+import { enforceStartupConfig } from "../config/validator";
 import * as servicesRepo from "../db/repositories/services.repo";
 import { executeServiceCheck, toHealthCheckPayload } from "../services/monitoring.service";
 import { publishHealthCheckEvent, closeProducer } from "../kafka/producer";
@@ -69,6 +70,7 @@ async function checkDueServices(): Promise<void> {
 }
 
 async function startMonitoringWorker(): Promise<void> {
+  enforceStartupConfig();
   logger.info("MonitoringWorker", `Starting monitoring worker (interval: ${config.monitoring.loopIntervalMs}ms, concurrency: ${config.monitoring.concurrency})`);
 
   // Ensure Kafka topics exist

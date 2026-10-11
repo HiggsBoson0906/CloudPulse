@@ -7,12 +7,21 @@ import incidentsRouter from "./routes/incidents.routes";
 import { requestLogger } from "./middleware/request-logger";
 import { createRateLimiter } from "./middleware/rate-limiter";
 import { errorHandler } from "./middleware/error.middleware";
+import { securityHeaders } from "./middleware/security-headers";
+import { corsMiddleware } from "./middleware/cors";
 
 export function createApp(): Express {
   const app: Express = express();
 
+  // Security headers & CORS
+  app.use(securityHeaders);
+  app.use(corsMiddleware);
+
+  // Parsing & logging
   app.use(express.json());
   app.use(requestLogger);
+
+  // IP Rate limiting
   app.use(createRateLimiter({ limit: 300, windowSeconds: 60 }));
 
   // Mount API Routers
