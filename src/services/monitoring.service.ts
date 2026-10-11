@@ -17,6 +17,65 @@ export interface CheckExecutionResult {
   environment: string;
 }
 
+/**
+ * Safely extracts human-readable failure reasons from probe errors, including nested causes
+ * (such as undici / native fetch TLS errors like UNABLE_TO_GET_ISSUER_CERT_LOCALLY and ECONNREFUSED)
+ * without logging sensitive headers, payloads, or credentials.
+ */
+export function extractProbeFailureReason(err: unknown, timeoutMs: number): string {
+  if (!err) return "Network error";
+
+  if (err instanceof Error) {
+    if (err.name === "AbortError" || err.name === "TimeoutError") {
+      return `Request timed out after ${timeoutMs}ms`;
+    }
+
+    const causeDetails: string[] = [];
+    let current: unknown = err;
+    let depth = 0;
+
+    // Traverse up to 3 levels of nested causes (standard in undici / native fetch)
+    while (current && depth < 3) {
+      if (typeof current === "object" && current !== null) {
+        const curObj = current as { message?: unknown; code?: unknown; cause?: unknown };
+        if (depth > 0) {
+          const msg = typeof curObj.message === "string" ? curObj.message.trim() : "";
+          const code = typeof curObj.code === "string" ? curObj.code.trim() : "";
+
+          let part = "";
+          if (msg && code && !msg.includes(code)) {
+            part = `${msg} (${code})`;
+          } else if (msg) {
+            part = msg;
+          } else if (code) {
+            part = code;
+          }
+
+          if (part && !causeDetails.includes(part)) {
+            causeDetails.push(part);
+          }
+        }
+        current = curObj.cause;
+        depth++;
+      } else {
+        break;
+      }
+    }
+
+    const baseMessage = err.message.trim() || "Network error";
+    if (causeDetails.length > 0) {
+      return `${baseMessage}: ${causeDetails.join(" -> ")}`.slice(0, 255);
+    }
+    return baseMessage.slice(0, 255);
+  }
+
+  if (typeof err === "string") {
+    return err.slice(0, 255);
+  }
+
+  return "Network error";
+}
+
 export async function executeServiceCheck(service: ServiceRecord): Promise<CheckExecutionResult | null> {
   // Prevent overlapping checks for the same service
   if (inFlightChecks.has(service.id)) {
@@ -30,9 +89,13 @@ export async function executeServiceCheck(service: ServiceRecord): Promise<Check
 
   try {
     const rawTargetUrl = `${service.baseUrl.replace(/\/+$/, "")}/${service.healthCheckPath.replace(/^\/+/, "")}`;
+    const ssrfOptions = {
+      allowPrivate: config.monitoring.allowPrivateTargets,
+      allowedPrivateHosts: config.monitoring.allowedPrivateHosts,
+    };
 
     // 1. SSRF Validation
-    const ssrfCheck = await validateTargetUrl(rawTargetUrl, config.monitoring.allowPrivateTargets);
+    const ssrfCheck = await validateTargetUrl(rawTargetUrl, ssrfOptions);
     if (!ssrfCheck.isValid) {
       const latencyMs = Date.now() - startTime;
       return {
@@ -67,7 +130,7 @@ export async function executeServiceCheck(service: ServiceRecord): Promise<Check
 
         while (redirectCount <= maxRedirects) {
           // Re-validate current URL for SSRF (applies to initial URL and every redirect hop)
-          const ssrfCheck = await validateTargetUrl(currentUrl, config.monitoring.allowPrivateTargets);
+          const ssrfCheck = await validateTargetUrl(currentUrl, ssrfOptions);
           if (!ssrfCheck.isValid) {
             finalStatusCode = null;
             isSuccess = false;
@@ -122,13 +185,8 @@ export async function executeServiceCheck(service: ServiceRecord): Promise<Check
           failureReason = `Exceeded maximum redirect limit of ${maxRedirects}`;
         }
       } catch (err: unknown) {
-        if (err instanceof Error && err.name === "AbortError") {
-          finalStatusCode = null;
-          failureReason = `Request timed out after ${service.timeoutMs}ms`;
-        } else {
-          finalStatusCode = null;
-          failureReason = err instanceof Error ? err.message : "Network error";
-        }
+        finalStatusCode = null;
+        failureReason = extractProbeFailureReason(err, service.timeoutMs);
       } finally {
         clearTimeout(timeoutId);
       }
@@ -155,7 +213,7 @@ export async function executeServiceCheck(service: ServiceRecord): Promise<Check
       statusCode: null,
       latencyMs,
       isSuccess: false,
-      failureReason: unexpectedErr instanceof Error ? unexpectedErr.message : "Internal check error",
+      failureReason: extractProbeFailureReason(unexpectedErr, service.timeoutMs),
       environment: service.environment,
     };
   } finally {

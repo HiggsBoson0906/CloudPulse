@@ -21,7 +21,18 @@ export interface AppConfig {
     concurrency: number;
     defaultTimeoutMs: number;
     allowPrivateTargets: boolean;
+    allowedPrivateHosts: string[];
   };
+}
+
+function parseList(val?: string): string[] {
+  if (!val) return [];
+  return val
+    .split(",")
+    .map(function (b) {
+      return b.trim().toLowerCase();
+    })
+    .filter(Boolean);
 }
 
 function parseBrokers(val?: string): string[] {
@@ -63,5 +74,6 @@ export const config: AppConfig = {
       (process.env.NODE_ENV || "development") === "production"
         ? process.env.ALLOW_PRIVATE_TARGETS_IN_PRODUCTION === "true"
         : process.env.ALLOW_PRIVATE_TARGETS === "true",
+    allowedPrivateHosts: parseList(process.env.ALLOWED_PRIVATE_HOSTS),
   },
 };

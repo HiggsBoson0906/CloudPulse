@@ -35,25 +35,26 @@ export interface SSRFValidationResult {
   resolvedIp?: string;
 }
 
-export function isPrivateOrForbiddenIp(ip: string, allowPrivate = false): boolean {
-  // Normalize IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+export interface ValidateUrlOptions {
+  allowPrivate?: boolean;
+  allowedPrivateHosts?: string[];
+}
+
+/**
+ * Checks whether an IP address is unconditionally forbidden (Loopback, Link-Local,
+ * Cloud Metadata, Unspecified/0.0.0.0/::, or Carrier-Grade NAT).
+ * These addresses are NEVER permitted under any circumstances, even when private targets are allowed.
+ */
+export function isAlwaysForbiddenIp(ip: string): boolean {
   if (ip.startsWith("::ffff:")) {
     ip = ip.replace("::ffff:", "");
   }
 
-  const isIpv4 = net.isIPv4(ip);
-  const isIpv6 = net.isIPv6(ip);
-
-  if (!isIpv4 && !isIpv6) {
-    return true; // Not a valid IP -> reject
-  }
-
-  // Cloud metadata checks
   if (CLOUD_METADATA_IPS.includes(ip)) {
     return true;
   }
 
-  if (isIpv4) {
+  if (net.isIPv4(ip)) {
     const parts = ip.split(".").map(function (n) {
       return parseInt(n, 10);
     });
@@ -62,33 +63,51 @@ export function isPrivateOrForbiddenIp(ip: string, allowPrivate = false): boolea
     // 127.0.0.0/8 Loopback
     if (b0 === 127) return true;
 
-    // 0.0.0.0/8 Current network
+    // 0.0.0.0/8 Current network / Unspecified
     if (b0 === 0) return true;
 
     // 169.254.0.0/16 Link-local / Cloud Metadata
     if (b0 === 169 && b1 === 254) return true;
 
-    // 100.64.0.0/10 Carrier-grade NAT (used in cloud internal networking)
+    // 100.64.0.0/10 Carrier-grade NAT
     if (b0 === 100 && b1 >= 64 && b1 <= 127) return true;
+  } else if (net.isIPv6(ip)) {
+    // :: Unspecified / all-zeros
+    if (ip === "::" || ip === "0:0:0:0:0:0:0:0") return true;
 
-    // RFC 1918 Private networks (blocked unless allowPrivate is enabled for local dev/testing)
-    if (!allowPrivate) {
-      // 10.0.0.0/8
-      if (b0 === 10) return true;
-      // 172.16.0.0/12
-      if (b0 === 172 && b1 >= 16 && b1 <= 31) return true;
-      // 192.168.0.0/16
-      if (b0 === 192 && b1 === 168) return true;
-    }
-  } else if (isIpv6) {
     // ::1 Loopback
     if (ip === "::1" || ip === "0:0:0:0:0:0:0:1") return true;
 
     // fe80::/10 Link-local
     if (ip.toLowerCase().startsWith("fe80:")) return true;
+  }
 
+  return false;
+}
+
+/**
+ * Checks whether an IP is in RFC 1918 private IPv4 or IPv6 Unique Local Address ranges.
+ */
+export function isRfc1918OrUla(ip: string): boolean {
+  if (ip.startsWith("::ffff:")) {
+    ip = ip.replace("::ffff:", "");
+  }
+
+  if (net.isIPv4(ip)) {
+    const parts = ip.split(".").map(function (n) {
+      return parseInt(n, 10);
+    });
+    const [b0, b1] = parts;
+
+    // 10.0.0.0/8
+    if (b0 === 10) return true;
+    // 172.16.0.0/12
+    if (b0 === 172 && b1 >= 16 && b1 <= 31) return true;
+    // 192.168.0.0/16
+    if (b0 === 192 && b1 === 168) return true;
+  } else if (net.isIPv6(ip)) {
     // fc00::/7 Unique Local Address
-    if (!allowPrivate && (ip.toLowerCase().startsWith("fc") || ip.toLowerCase().startsWith("fd"))) {
+    if (ip.toLowerCase().startsWith("fc") || ip.toLowerCase().startsWith("fd")) {
       return true;
     }
   }
@@ -96,10 +115,38 @@ export function isPrivateOrForbiddenIp(ip: string, allowPrivate = false): boolea
   return false;
 }
 
+export function isPrivateOrForbiddenIp(ip: string, allowPrivate = false): boolean {
+  if (!net.isIPv4(ip) && !net.isIPv6(ip)) {
+    return true; // Not a valid IP -> reject
+  }
+
+  if (isAlwaysForbiddenIp(ip)) {
+    return true;
+  }
+
+  if (!allowPrivate && isRfc1918OrUla(ip)) {
+    return true;
+  }
+
+  return false;
+}
+
 export async function validateTargetUrl(
   rawUrl: string,
-  allowPrivate = false
+  optionsOrAllowPrivate: boolean | ValidateUrlOptions = false
 ): Promise<SSRFValidationResult> {
+  const allowPrivate =
+    typeof optionsOrAllowPrivate === "boolean"
+      ? optionsOrAllowPrivate
+      : !!optionsOrAllowPrivate?.allowPrivate;
+
+  const allowedPrivateHosts =
+    typeof optionsOrAllowPrivate === "object" && optionsOrAllowPrivate?.allowedPrivateHosts
+      ? optionsOrAllowPrivate.allowedPrivateHosts.map(function (h) {
+          return h.toLowerCase();
+        })
+      : [];
+
   let parsed: URL;
   try {
     parsed = new URL(rawUrl);
@@ -123,14 +170,24 @@ export async function validateTargetUrl(
     };
   }
 
+  const isHostAllowedPrivate = allowedPrivateHosts.includes(hostname);
+
   // Direct IP address in hostname
   if (net.isIP(hostname)) {
-    if (isPrivateOrForbiddenIp(hostname, allowPrivate)) {
+    if (isAlwaysForbiddenIp(hostname)) {
       return {
         isValid: false,
-        reason: `Direct IP target '${hostname}' resolves to a restricted private or metadata network`,
+        reason: `Direct IP target '${hostname}' resolves to a restricted loopback, link-local, or metadata network`,
       };
     }
+
+    if (isRfc1918OrUla(hostname) && !allowPrivate && !isHostAllowedPrivate) {
+      return {
+        isValid: false,
+        reason: `Direct IP target '${hostname}' resolves to a restricted private network`,
+      };
+    }
+
     return { isValid: true, resolvedIp: hostname };
   }
 
@@ -143,11 +200,24 @@ export async function validateTargetUrl(
     }
 
     for (const record of lookups) {
-      if (isPrivateOrForbiddenIp(record.address, allowPrivate)) {
+      const addr = record.address;
+
+      // 1. Unconditionally forbidden (metadata, loopback, link-local, unspecified)
+      if (isAlwaysForbiddenIp(addr)) {
         return {
           isValid: false,
-          reason: `Hostname '${hostname}' resolved to restricted IP '${record.address}'`,
+          reason: `Hostname '${hostname}' resolved to prohibited IP '${addr}' (loopback/link-local/metadata)`,
         };
+      }
+
+      // 2. RFC 1918 / ULA private networks (permitted ONLY if explicitly whitelisted or allowPrivate=true)
+      if (isRfc1918OrUla(addr)) {
+        if (!allowPrivate && !isHostAllowedPrivate) {
+          return {
+            isValid: false,
+            reason: `Hostname '${hostname}' resolved to restricted private IP '${addr}'`,
+          };
+        }
       }
     }
 

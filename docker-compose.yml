@@ -69,7 +69,7 @@ services:
       DATABASE_URL: "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cloudpulse}"
       REDIS_URL: "redis://redis:6379"
       KAFKA_BROKERS: "kafka:9092"
-      ALLOW_PRIVATE_TARGETS: "true"
+      ALLOW_PRIVATE_TARGETS: "false"
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,7 +93,8 @@ services:
       KAFKA_BROKERS: "kafka:9092"
       WORKER_CHECK_INTERVAL_MS: "5000"
       WORKER_CONCURRENCY: "10"
-      ALLOW_PRIVATE_TARGETS: "true"
+      ALLOW_PRIVATE_TARGETS: "false"
+      ALLOWED_PRIVATE_HOSTS: "mock-service"
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,7 +118,7 @@ services:
       DATABASE_URL: "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-cloudpulse}"
       REDIS_URL: "redis://redis:6379"
       KAFKA_BROKERS: "kafka:9092"
-      ALLOW_PRIVATE_TARGETS: "true"
+      ALLOW_PRIVATE_TARGETS: "false"
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,6 +128,44 @@ services:
         condition: service_healthy
       api:
         condition: service_started
+    restart: unless-stopped
+
+  mock-service:
+    image: node:22-alpine
+    container_name: cloudpulse-mock-service
+    command: >
+      node -e "
+      const http = require('http');
+      let failing = false;
+      const server = http.createServer((req, res) => {
+        if (req.url === '/health') {
+          if (failing) {
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ status: 'DOWN', error: 'Service Unavailable' }));
+          } else {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ status: 'UP', service: 'mock-auth-service' }));
+          }
+        } else if (req.url === '/gateway/health') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'UP', service: 'mock-gateway' }));
+        } else if (req.url === '/fail') {
+          failing = true;
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ failing: true }));
+        } else if (req.url === '/recover') {
+          failing = false;
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ failing: false }));
+        } else {
+          res.writeHead(404);
+          res.end();
+        }
+      });
+      server.listen(8080, () => console.log('Mock health service listening on 8080'));
+      "
+    expose:
+      - "8080"
     restart: unless-stopped
 
 volumes:

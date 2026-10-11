@@ -8,6 +8,7 @@ import {
 import { isPrivateOrForbiddenIp, validateTargetUrl } from "../utils/ssrf-validator";
 import { cacheService } from "../redis/cache.service";
 import { isAlertWithinCooldown } from "../services/alert-engine.service";
+import { extractProbeFailureReason } from "../services/monitoring.service";
 
 export async function runUnitTests(): Promise<{ passed: number; failed: number }> {
   let passed = 0;
@@ -80,11 +81,39 @@ export async function runUnitTests(): Promise<{ passed: number; failed: number }
     assert.strictEqual(isPrivateOrForbiddenIp("192.168.1.1", false), true);
   });
 
+  await runTest("SSRF: blocks IPv6 all-zeros / unspecified addresses", function () {
+    assert.strictEqual(isPrivateOrForbiddenIp("::", false), true);
+    assert.strictEqual(isPrivateOrForbiddenIp("0:0:0:0:0:0:0:0", false), true);
+    assert.strictEqual(isPrivateOrForbiddenIp("::", true), true); // even with allowPrivate=true
+  });
+
   await runTest("SSRF: allows private RFC1918 ranges when allowPrivate is true", function () {
     assert.strictEqual(isPrivateOrForbiddenIp("10.0.0.1", true), false);
     assert.strictEqual(isPrivateOrForbiddenIp("192.168.1.1", true), false);
-    // Still blocks metadata even when allowPrivate is true!
+    // Still blocks metadata and loopback even when allowPrivate is true!
     assert.strictEqual(isPrivateOrForbiddenIp("169.254.169.254", true), true);
+    assert.strictEqual(isPrivateOrForbiddenIp("127.0.0.1", true), true);
+  });
+
+  await runTest("SSRF: enforces scoped allowedPrivateHosts policy", async function () {
+    // Direct private IP target with allowedPrivateHosts (direct IP not allowed unless allowPrivate=true)
+    const directIp = await validateTargetUrl("http://172.19.0.8:8080/health", {
+      allowPrivate: false,
+      allowedPrivateHosts: ["mock-service"],
+    });
+    assert.strictEqual(directIp.isValid, false, "Direct private IP target should be rejected without explicit allowPrivate");
+
+    // Loopback target even with allowedPrivateHosts matching name must NEVER be permitted
+    const loopback = await validateTargetUrl("http://127.0.0.1:8080/health", {
+      allowedPrivateHosts: ["127.0.0.1"],
+    });
+    assert.strictEqual(loopback.isValid, false, "Loopback must never be permitted regardless of allowlist");
+
+    // Metadata target must NEVER be permitted regardless of allowlist
+    const metadata = await validateTargetUrl("http://169.254.169.254/latest/meta-data", {
+      allowedPrivateHosts: ["169.254.169.254"],
+    });
+    assert.strictEqual(metadata.isValid, false, "Cloud metadata must never be permitted regardless of allowlist");
   });
 
   await runTest("SSRF: rejects non-http protocols and malformed URLs", async function () {
@@ -158,6 +187,41 @@ export async function runUnitTests(): Promise<{ passed: number; failed: number }
     assert.strictEqual(isAlertWithinCooldown(activeAlert, cooldownMinutes, t0 + 2 * 60 * 1000), true);
     // 6 minutes after trigger: cooldown expired
     assert.strictEqual(isAlertWithinCooldown(activeAlert, cooldownMinutes, t0 + 6 * 60 * 1000), false);
+  });
+
+  // 6. Nested Probe Failure Diagnostics
+  await runTest("Probe errors: extracts nested TLS cause code and message", function () {
+    const tlsCause = Object.assign(new Error("unable to get local issuer certificate"), {
+      code: "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+    });
+    const fetchError = new TypeError("fetch failed", { cause: tlsCause });
+    const reason = extractProbeFailureReason(fetchError, 5000);
+    assert.strictEqual(
+      reason,
+      "fetch failed: unable to get local issuer certificate (UNABLE_TO_GET_ISSUER_CERT_LOCALLY)"
+    );
+  });
+
+  await runTest("Probe errors: extracts connection refused code and address", function () {
+    const connCause = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:8080"), {
+      code: "ECONNREFUSED",
+    });
+    const fetchError = new TypeError("fetch failed", { cause: connCause });
+    const reason = extractProbeFailureReason(fetchError, 5000);
+    assert.strictEqual(reason, "fetch failed: connect ECONNREFUSED 127.0.0.1:8080");
+  });
+
+  await runTest("Probe errors: handles timeouts cleanly", function () {
+    const abortErr = new Error("The operation was aborted");
+    abortErr.name = "AbortError";
+    assert.strictEqual(extractProbeFailureReason(abortErr, 3000), "Request timed out after 3000ms");
+  });
+
+  await runTest("Probe errors: handles strings and unknown error shapes safely", function () {
+    assert.strictEqual(extractProbeFailureReason("Remote socket dropped", 5000), "Remote socket dropped");
+    assert.strictEqual(extractProbeFailureReason(null, 5000), "Network error");
+    assert.strictEqual(extractProbeFailureReason(undefined, 5000), "Network error");
+    assert.strictEqual(extractProbeFailureReason({}, 5000), "Network error");
   });
 
   return { passed, failed };
