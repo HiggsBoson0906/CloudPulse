@@ -15,10 +15,12 @@ import type {
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
+const isProduction = import.meta.env.PROD;
+
 let currentApiKey =
   (typeof localStorage !== 'undefined' ? localStorage.getItem('cloudpulse_api_key') : null) ||
   import.meta.env.VITE_API_KEY ||
-  'cp-admin-dev-key';
+  (isProduction ? '' : 'cp-admin-dev-key');
 
 export function getApiKey(): string {
   return currentApiKey;

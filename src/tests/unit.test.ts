@@ -466,5 +466,104 @@ export async function runUnitTests(): Promise<{ passed: number; failed: number }
     }
   });
 
+  // 11. Adversarial SSRF Test Suite: DNS Rebinding, Prohibited Dest, & Redirects
+  await runTest("SSRF Adversarial: Exhaustive IPv4 and IPv6 prohibited ranges", function () {
+    const { isAlwaysForbiddenIp, isPrivateOrForbiddenIp } = require("../utils/ssrf-validator");
+
+    // All these MUST be blocked unconditionally (even if allowPrivate=true)
+    const alwaysForbiddenList = [
+      "127.0.0.1",
+      "127.1.2.3",
+      "0.0.0.0",
+      "169.254.169.254", // AWS/GCP/Azure Metadata
+      "169.254.170.2",   // AWS ECS Task Metadata
+      "169.254.1.1",     // Link-local IPv4
+      "100.64.0.1",      // Carrier-Grade NAT
+      "100.127.255.254", // Carrier-Grade NAT
+      "::1",             // IPv6 Loopback
+      "::",              // IPv6 Unspecified / all-zeros
+      "0:0:0:0:0:0:0:0", // IPv6 all-zeros
+      "fd00:ec2::254",   // AWS IPv6 IMDS
+      "fe80::1",         // IPv6 Link-local
+      "::ffff:127.0.0.1",// IPv4-mapped loopback
+      "::ffff:169.254.169.254", // IPv4-mapped metadata
+    ];
+
+    for (const ip of alwaysForbiddenList) {
+      assert.strictEqual(
+        isAlwaysForbiddenIp(ip),
+        true,
+        `Expected ${ip} to be unconditionally forbidden in isAlwaysForbiddenIp`
+      );
+      assert.strictEqual(
+        isPrivateOrForbiddenIp(ip, true),
+        true,
+        `Expected ${ip} to be blocked in isPrivateOrForbiddenIp even when allowPrivate=true`
+      );
+    }
+  });
+
+  await runTest("SSRF Adversarial: DNS Rebinding pinning prevents TOCTOU socket substitution", async function () {
+    const { createSafeDispatcher } = require("../utils/ssrf-dispatcher");
+
+    // Domain was validated against safe public IP 93.184.216.34 at T1.
+    // Attacker's nameserver attempts to substitute 127.0.0.1 or 169.254.169.254 at T2 connect time.
+    const safePinnedIp = "93.184.216.34";
+    const maliciousRebindIp = "127.0.0.1";
+
+    // 1. Safe pinned dispatcher uses only the pinned safe IP
+    const safeAgent = createSafeDispatcher("http://rebind-attacker.com", {
+      pinnedIp: safePinnedIp,
+    });
+    assert(safeAgent !== null);
+
+    // 2. If attacker manages to feed the malicious rebind IP to the dispatcher's connect lookup, it throws immediately
+    const maliciousAgent = createSafeDispatcher("http://rebind-attacker.com", {
+      pinnedIp: maliciousRebindIp,
+    });
+
+    let caught = false;
+    try {
+      await fetch("http://rebind-attacker.com", { dispatcher: maliciousAgent } as any);
+    } catch (err: any) {
+      caught = true;
+      const msg = err?.cause?.message || err?.message || "";
+      assert(msg.includes("SSRF") || msg.includes("fetch failed"), `Expected SSRF block, got: ${msg}`);
+    }
+    assert.strictEqual(caught, true, "DNS rebinding to loopback must be prevented at connection time");
+  });
+
+  await runTest("SSRF Adversarial: Redirects to forbidden internal targets are blocked", async function () {
+    const { validateTargetUrl } = require("../utils/ssrf-validator");
+
+    const maliciousRedirectHops = [
+      "http://169.254.169.254/latest/meta-data/",
+      "http://169.254.170.2/v2/credentials",
+      "http://127.0.0.1:5432/",
+      "http://[::1]:6379/",
+      "http://[::]:8080/",
+      "http://10.0.0.1:9092/",
+      "http://172.19.0.3:5432/", // internal Postgres
+    ];
+
+    const ssrfOptions = {
+      allowPrivate: false,
+      allowedPrivateHosts: ["mock-service"],
+    };
+
+    for (const redirectUrl of maliciousRedirectHops) {
+      const result = await validateTargetUrl(redirectUrl, ssrfOptions);
+      assert.strictEqual(
+        result.isValid,
+        false,
+        `Expected redirect target '${redirectUrl}' to be rejected by SSRF protection`
+      );
+      assert(
+        result.reason && result.reason.length > 0,
+        `Expected rejection reason for redirect target '${redirectUrl}'`
+      );
+    }
+  });
+
   return { passed, failed };
 }
