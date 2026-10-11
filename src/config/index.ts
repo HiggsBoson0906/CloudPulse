@@ -101,6 +101,6 @@ export const config: AppConfig = {
       (isProduction ? "" : "cp-viewer-dev-key-32chars-prod-re"),
   },
   cors: {
-    allowedOrigins: parseList(process.env.CORS_ALLOWED_ORIGINS),
+    allowedOrigins: parseList(process.env.CORS_ALLOWED_ORIGINS || "*"),
   },
 };

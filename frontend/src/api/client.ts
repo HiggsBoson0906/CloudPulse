@@ -33,9 +33,12 @@ if (!isProduction && storedKey === 'cp-admin-dev-key') {
   }
 }
 
+const envApiKey = (import.meta.env.VITE_API_KEY || '').trim();
+
 let currentApiKey =
   storedKey ||
-  (isProduction ? '' : import.meta.env.VITE_API_KEY || DEV_DEFAULT_ADMIN_KEY);
+  envApiKey ||
+  (isProduction ? '' : DEV_DEFAULT_ADMIN_KEY);
 
 export function getApiKey(): string {
   return currentApiKey;
@@ -67,6 +70,10 @@ async function authFetch(path: string, options: RequestInit = {}): Promise<Respo
   const headers = new Headers(options.headers || {});
   if (currentApiKey && !headers.has('Authorization') && !headers.has('X-API-Key')) {
     headers.set('Authorization', `Bearer ${currentApiKey}`);
+  }
+  // Automatically bypass ngrok free tier interstitial warning page
+  if (BASE_URL.includes('ngrok') && !headers.has('ngrok-skip-browser-warning')) {
+    headers.set('ngrok-skip-browser-warning', 'true');
   }
   return fetch(getUrl(path), {
     ...options,
