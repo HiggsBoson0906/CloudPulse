@@ -15,39 +15,30 @@ import type {
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
-const isProduction = import.meta.env.PROD;
-
-// Standard local development key matching docker-compose & local backend default
-export const DEV_DEFAULT_ADMIN_KEY = 'cp-admin-dev-key-32chars-prod-ready';
-
 let storedKey =
-  typeof localStorage !== 'undefined' ? localStorage.getItem('cloudpulse_api_key') : null;
+  (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('cloudpulse_api_key') : null) ||
+  (typeof localStorage !== 'undefined' ? localStorage.getItem('cloudpulse_api_key') : null);
 
-// In development, automatically migrate any legacy short dev key to the current dev key
-if (!isProduction && storedKey === 'cp-admin-dev-key') {
-  storedKey = DEV_DEFAULT_ADMIN_KEY;
-  try {
-    localStorage.setItem('cloudpulse_api_key', DEV_DEFAULT_ADMIN_KEY);
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-const envApiKey = (import.meta.env.VITE_API_KEY || '').trim();
-
+// In production or client builds, no default administrative secrets are bundled.
 let currentApiKey =
   storedKey ||
-  envApiKey ||
-  (isProduction ? '' : DEV_DEFAULT_ADMIN_KEY);
+  (import.meta.env.VITE_API_KEY || '').trim();
 
 export function getApiKey(): string {
   return currentApiKey;
 }
 
-export function setApiKey(key: string): void {
+export function setApiKey(key: string, persist = true): void {
   currentApiKey = key;
-  if (typeof localStorage !== 'undefined') {
+  if (typeof sessionStorage !== 'undefined') {
     if (key) {
+      sessionStorage.setItem('cloudpulse_api_key', key);
+    } else {
+      sessionStorage.removeItem('cloudpulse_api_key');
+    }
+  }
+  if (typeof localStorage !== 'undefined') {
+    if (key && persist) {
       localStorage.setItem('cloudpulse_api_key', key);
     } else {
       localStorage.removeItem('cloudpulse_api_key');

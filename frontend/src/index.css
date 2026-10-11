@@ -16,6 +16,7 @@ html, body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--cp-transition-micro), color var(--cp-transition-micro);
 }
 
 #root {
@@ -83,7 +84,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   background: linear-gradient(
     90deg,
     var(--cp-bg-surface-elevated) 25%,
-    rgba(255, 255, 255, 0.05) 37%,
+    var(--cp-border-subtle) 37%,
     var(--cp-bg-surface-elevated) 63%
   );
   background-size: 200% 100%;

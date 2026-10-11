@@ -78,9 +78,9 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({
                 fontSize: '11px',
                 padding: '2px 8px',
                 borderRadius: '4px',
-                backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                color: '#38BDF8',
-                border: '1px solid rgba(56, 189, 248, 0.25)',
+                backgroundColor: 'var(--cp-accent-teal-subtle)',
+                color: 'var(--cp-accent-teal)',
+                border: '1px solid var(--cp-accent-teal-border)',
                 textTransform: 'uppercase',
               }}
             >

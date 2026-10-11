@@ -29,7 +29,7 @@
 }
 
 .logoIcon {
-  color: #38BDF8;
+  color: var(--cp-accent-teal);
 }
 
 .statusPill {
@@ -156,6 +156,26 @@
 }
 
 .keyBtn:hover {
+  background-color: var(--cp-bg-surface-elevated);
+  border-color: var(--cp-border-strong);
+  color: var(--cp-text-primary);
+}
+
+.themeBtn {
+  background-color: var(--cp-bg-well);
+  color: var(--cp-text-secondary);
+  border: 1px solid var(--cp-border-subtle);
+  border-radius: var(--cp-radius-sm);
+  height: 28px;
+  width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--cp-transition-micro);
+}
+
+.themeBtn:hover {
   background-color: var(--cp-bg-surface-elevated);
   border-color: var(--cp-border-strong);
   color: var(--cp-text-primary);

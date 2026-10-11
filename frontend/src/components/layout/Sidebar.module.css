@@ -46,8 +46,8 @@
 
 .navItemActive {
   background-color: var(--cp-bg-surface-elevated);
-  color: #38BDF8;
-  border-color: rgba(56, 189, 248, 0.2);
+  color: var(--cp-accent-teal);
+  border-color: var(--cp-accent-teal-border);
   font-weight: 600;
 }
 

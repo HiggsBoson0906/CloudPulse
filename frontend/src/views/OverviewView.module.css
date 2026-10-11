@@ -179,7 +179,7 @@
 .connectingBanner {
   background-color: var(--cp-bg-surface);
   border: 1px solid var(--cp-border-subtle);
-  border-left: 4px solid #38BDF8;
+  border-left: 4px solid var(--cp-accent-teal);
   border-radius: var(--cp-radius-md);
   padding: 14px 20px;
   display: flex;
@@ -193,7 +193,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #38BDF8;
+  color: var(--cp-accent-teal);
   font-weight: 600;
   font-size: 14px;
 }
@@ -376,9 +376,9 @@
 }
 
 .viewDetailBtn {
-  color: #38BDF8;
+  color: var(--cp-accent-teal);
   background: transparent;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid var(--cp-accent-teal-border);
   border-radius: var(--cp-radius-sm);
   padding: 4px 10px;
   font-size: 12px;
@@ -388,8 +388,8 @@
 }
 
 .viewDetailBtn:hover {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: #38BDF8;
+  background: var(--cp-accent-teal-subtle);
+  border-color: var(--cp-accent-teal);
 }
 
 .emptyState {

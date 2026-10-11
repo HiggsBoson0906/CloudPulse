@@ -30,6 +30,31 @@ export function App() {
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(() => Boolean(api.getApiKey()));
 
+  // Theme Management (Dark / Light Mode)
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('cloudpulse_theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+    }
+    return typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-color-scheme: light)').matches
+      ? 'light'
+      : 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('cloudpulse_theme', theme);
+    } catch {
+      // Ignore storage errors
+    }
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
   // Platform Telemetry State
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [services, setServices] = useState<ServiceRecord[]>([]);
@@ -322,6 +347,8 @@ export function App() {
         isRefreshing={isRefreshing}
         hasApiKey={hasApiKey}
         onOpenKeyModal={() => setIsKeyModalOpen(true)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       <div className={appStyles.body}>

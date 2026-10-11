@@ -88,7 +88,7 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
         </span>
         <span>Samples: <strong style={{ color: 'var(--cp-text-primary)' }}>{chronological.length}</strong></span>
         <span>Min: <strong style={{ color: 'var(--cp-status-up)' }}>{minLatency}ms</strong></span>
-        <span>Avg: <strong style={{ color: '#38BDF8' }}>{avgLatency}ms</strong></span>
+        <span>Avg: <strong style={{ color: 'var(--cp-accent-teal)' }}>{avgLatency}ms</strong></span>
         <span>Max: <strong style={{ color: maxLatency > 300 ? 'var(--cp-status-down)' : 'var(--cp-text-primary)' }}>{maxLatency}ms</strong></span>
         <span>Success: <strong style={{ color: Number(successRate) >= 99 ? 'var(--cp-status-up)' : 'var(--cp-status-degraded)' }}>{successRate}%</strong></span>
       </div>
@@ -101,8 +101,8 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
       >
         <defs>
           <linearGradient id="latencyAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.00" />
+            <stop offset="0%" stopColor="var(--cp-accent-teal)" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="var(--cp-accent-teal)" stopOpacity="0.00" />
           </linearGradient>
         </defs>
 
@@ -140,7 +140,7 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
           y1={avgY}
           x2={width - padding.right}
           y2={avgY}
-          stroke="rgba(56, 189, 248, 0.4)"
+          stroke="var(--cp-accent-teal-border)"
           strokeDasharray="4 2"
           strokeWidth="1"
         />
@@ -152,7 +152,7 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
         <path
           d={linePath}
           fill="none"
-          stroke="#38BDF8"
+          stroke="var(--cp-accent-teal)"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -165,8 +165,8 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
             cx={p.x}
             cy={p.y}
             r={p.check === hoveredCheck ? 5 : 3}
-            fill={p.check.isSuccess ? '#10B981' : '#EF4444'}
-            stroke="#111827"
+            fill={p.check.isSuccess ? 'var(--cp-status-up)' : 'var(--cp-status-down)'}
+            stroke="var(--cp-bg-surface)"
             strokeWidth="1.5"
             style={{ cursor: 'pointer', transition: 'r 150ms ease' }}
             onMouseEnter={(e) => {

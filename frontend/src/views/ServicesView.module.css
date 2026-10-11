@@ -67,8 +67,8 @@
 }
 
 .primaryBtn {
-  background-color: #38BDF8;
-  color: #0B0F17;
+  background-color: var(--cp-accent-teal);
+  color: var(--cp-accent-teal-contrast);
   border: none;
   border-radius: var(--cp-radius-md);
   padding: 8px 16px;
@@ -78,11 +78,11 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  transition: background-color var(--cp-transition-micro);
+  transition: opacity var(--cp-transition-micro);
 }
 
 .primaryBtn:hover {
-  background-color: #7DD3FC;
+  opacity: 0.9;
 }
 
 .tableSection {

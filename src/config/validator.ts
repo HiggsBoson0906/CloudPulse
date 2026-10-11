@@ -7,6 +7,35 @@ export interface ConfigValidationResult {
   warnings: string[];
 }
 
+export const KNOWN_INSECURE_KEYS = new Set([
+  "cp-admin-dev-key",
+  "cp-admin-dev-key-32chars-prod-ready",
+  "cp-operator-dev-key",
+  "cp-operator-dev-key-32chars-prod",
+  "cp-viewer-dev-key",
+  "cp-viewer-dev-key-32chars-prod-re",
+  "admin",
+  "password",
+  "secret",
+  "changeme",
+  "12345678",
+  "default",
+]);
+
+export function isKnownInsecureKey(key: string): boolean {
+  if (!key) return false;
+  const normalized = key.trim().toLowerCase();
+  if (KNOWN_INSECURE_KEYS.has(normalized)) return true;
+  if (
+    normalized.startsWith("cp-admin-dev-key") ||
+    normalized.startsWith("cp-operator-dev-key") ||
+    normalized.startsWith("cp-viewer-dev-key")
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Validates system configuration before accepting traffic or starting workers.
  * In production, enforces strict secret requirements and disallows insecure defaults.
@@ -20,8 +49,28 @@ export function validateSystemConfig(): ConfigValidationResult {
     // 1. Mandatory Admin API Key in production
     if (!config.auth.adminKey || config.auth.adminKey.trim().length === 0) {
       errors.push("CLOUDPULSE_ADMIN_API_KEY must be set in production mode");
-    } else if (config.auth.adminKey.length < 16) {
-      errors.push("CLOUDPULSE_ADMIN_API_KEY must be at least 16 characters in production");
+    } else if (config.auth.adminKey.length < 32) {
+      errors.push("CLOUDPULSE_ADMIN_API_KEY must be at least 32 characters in production");
+    } else if (isKnownInsecureKey(config.auth.adminKey)) {
+      errors.push(
+        "CLOUDPULSE_ADMIN_API_KEY cannot use known development/insecure default keys in production"
+      );
+    }
+
+    if (config.auth.operatorKey) {
+      if (config.auth.operatorKey.length < 32) {
+        errors.push("CLOUDPULSE_OPERATOR_API_KEY must be at least 32 characters in production");
+      } else if (isKnownInsecureKey(config.auth.operatorKey)) {
+        errors.push("CLOUDPULSE_OPERATOR_API_KEY cannot use known development/insecure default keys in production");
+      }
+    }
+
+    if (config.auth.viewerKey) {
+      if (config.auth.viewerKey.length < 32) {
+        errors.push("CLOUDPULSE_VIEWER_API_KEY must be at least 32 characters in production");
+      } else if (isKnownInsecureKey(config.auth.viewerKey)) {
+        errors.push("CLOUDPULSE_VIEWER_API_KEY cannot use known development/insecure default keys in production");
+      }
     }
 
     // 2. Reject default insecure postgres credentials in production

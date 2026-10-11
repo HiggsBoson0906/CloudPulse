@@ -353,6 +353,58 @@ export async function runUnitTests(): Promise<{ passed: number; failed: number }
     assert.strictEqual(nextCalled, true);
   });
 
+  await runTest("RBAC: viewer cannot perform operator operations (403)", function () {
+    const { requireRole } = require("../middleware/auth.middleware");
+    let status = 0;
+    let nextCalled = false;
+
+    const mockReq = { user: { role: "viewer", keyId: "viewer-key" } };
+    const mockRes = {
+      status: function (s: number) {
+        status = s;
+        return this;
+      },
+      json: function () {},
+    };
+
+    const operatorGuard = requireRole("operator");
+    operatorGuard(mockReq, mockRes, function () {
+      nextCalled = true;
+    });
+
+    assert.strictEqual(status, 403);
+    assert.strictEqual(nextCalled, false);
+  });
+
+  await runTest("RBAC: admin has hierarchical access to viewer, operator, and admin guards", function () {
+    const { requireRole } = require("../middleware/auth.middleware");
+    const mockReq = { user: { role: "admin", keyId: "admin-key" } };
+    const mockRes = {
+      status: function () {
+        return this;
+      },
+      json: function () {},
+    };
+
+    let viewerPassed = false;
+    let operatorPassed = false;
+    let adminPassed = false;
+
+    requireRole("viewer")(mockReq, mockRes, () => {
+      viewerPassed = true;
+    });
+    requireRole("operator")(mockReq, mockRes, () => {
+      operatorPassed = true;
+    });
+    requireRole("admin")(mockReq, mockRes, () => {
+      adminPassed = true;
+    });
+
+    assert.strictEqual(viewerPassed, true, "Admin must satisfy viewer guard");
+    assert.strictEqual(operatorPassed, true, "Admin must satisfy operator guard");
+    assert.strictEqual(adminPassed, true, "Admin must satisfy admin guard");
+  });
+
   await runTest("Auth: accepts X-API-Key header as alternative to Bearer token", function () {
     const { authenticate } = require("../middleware/auth.middleware");
     const { config } = require("../config");
@@ -374,13 +426,14 @@ export async function runUnitTests(): Promise<{ passed: number; failed: number }
     assert.strictEqual(mockReq.user?.role, "admin");
   });
 
-  await runTest("Auth: default development admin key satisfies entropy requirement (>= 16 chars) and authenticates as admin", function () {
+  await runTest("Auth: configured runtime admin key satisfies entropy requirement and authenticates as admin", function () {
     const { authenticate } = require("../middleware/auth.middleware");
-    const devAdminKey = "cp-admin-dev-key-32chars-prod-ready";
-    assert(devAdminKey.length >= 16, "Dev admin key must be at least 16 characters");
+    const { config } = require("../config");
+    const adminKey = config.auth.adminKey || "cp-admin-dev-key-32chars-prod-ready";
+    assert(adminKey.length >= 16, "Admin key must be at least 16 characters");
 
     let nextCalled = false;
-    const mockReq: any = { headers: { authorization: `Bearer ${devAdminKey}` } };
+    const mockReq: any = { headers: { authorization: `Bearer ${adminKey}` } };
     const mockRes = {
       status: function () {
         return this;
@@ -548,7 +601,7 @@ export async function runUnitTests(): Promise<{ passed: number; failed: number }
     }
   });
 
-  await runTest("Config Validator: rejects short admin key in production", function () {
+  await runTest("Config Validator: rejects short admin key (< 32 chars) in production", function () {
     const { validateSystemConfig } = require("../config/validator");
     const { config } = require("../config");
 
@@ -557,10 +610,59 @@ export async function runUnitTests(): Promise<{ passed: number; failed: number }
 
     try {
       config.nodeEnv = "production";
-      config.auth.adminKey = "short-key";
+      config.auth.adminKey = "short-key-less-than-32-chars";
       const result = validateSystemConfig();
       assert.strictEqual(result.isValid, false);
-      assert(result.errors.some((e: string) => e.includes("at least 16 characters")));
+      assert(result.errors.some((e: string) => e.includes("at least 32 characters")));
+    } finally {
+      config.nodeEnv = originalEnv;
+      config.auth.adminKey = originalKey;
+    }
+  });
+
+  await runTest("Config Validator: rejects known default development keys in production mode", function () {
+    const { validateSystemConfig, isKnownInsecureKey } = require("../config/validator");
+    const { config } = require("../config");
+
+    assert.strictEqual(isKnownInsecureKey("cp-admin-dev-key-32chars-prod-ready"), true);
+    assert.strictEqual(isKnownInsecureKey("cp-operator-dev-key-32chars-prod"), true);
+    assert.strictEqual(isKnownInsecureKey("cp-viewer-dev-key-32chars-prod-re"), true);
+
+    const originalEnv = config.nodeEnv;
+    const originalKey = config.auth.adminKey;
+
+    try {
+      config.nodeEnv = "production";
+      config.auth.adminKey = "cp-admin-dev-key-32chars-prod-ready";
+      const result = validateSystemConfig();
+      assert.strictEqual(result.isValid, false);
+      assert(
+        result.errors.some((e: string) =>
+          e.includes("cannot use known development/insecure default keys")
+        )
+      );
+    } finally {
+      config.nodeEnv = originalEnv;
+      config.auth.adminKey = originalKey;
+    }
+  });
+
+  await runTest("Config Validator: accepts strong, independently configured runtime secret in production", function () {
+    const { validateSystemConfig } = require("../config/validator");
+    const { config } = require("../config");
+
+    const originalEnv = config.nodeEnv;
+    const originalKey = config.auth.adminKey;
+
+    try {
+      config.nodeEnv = "production";
+      // Independent 64-char hex runtime secret
+      config.auth.adminKey = "9f83ab3847c102938475bcdef0192837465abcde9018273645fe1234abcd5678";
+      const result = validateSystemConfig();
+      assert.strictEqual(
+        result.errors.some((e: string) => e.includes("CLOUDPULSE_ADMIN_API_KEY")),
+        false
+      );
     } finally {
       config.nodeEnv = originalEnv;
       config.auth.adminKey = originalKey;

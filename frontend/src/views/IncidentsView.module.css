@@ -38,7 +38,7 @@
 
 .tabBtnActive {
   background-color: var(--cp-bg-surface-elevated);
-  color: #38BDF8;
+  color: var(--cp-accent-teal);
   font-weight: 600;
 }
 

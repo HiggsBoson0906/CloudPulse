@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Key, Eye, EyeOff, X, Check, AlertCircle } from 'lucide-react';
-import { api, DEV_DEFAULT_ADMIN_KEY } from '../../api/client';
+import { Key, Eye, EyeOff, X, Check } from 'lucide-react';
+import { api } from '../../api/client';
 import styles from './ApiKeyModal.module.css';
 
 interface ApiKeyModalProps {
@@ -15,6 +15,9 @@ const ApiKeyModalContent: React.FC<{
 }> = ({ onClose, onKeySaved }) => {
   const [keyInput, setKeyInput] = useState(() => api.getApiKey() || '');
   const [showKey, setShowKey] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(() => {
+    return typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('cloudpulse_api_key'));
+  });
 
   const currentKey = api.getApiKey();
   const isConfigured = Boolean(currentKey && currentKey.trim().length > 0);
@@ -22,20 +25,16 @@ const ApiKeyModalContent: React.FC<{
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     const cleanKey = keyInput.trim();
-    api.setApiKey(cleanKey);
+    api.setApiKey(cleanKey, rememberDevice);
     onKeySaved(cleanKey);
     onClose();
   }
 
   function handleClear() {
-    api.setApiKey('');
+    api.setApiKey('', false);
     setKeyInput('');
     onKeySaved('');
     onClose();
-  }
-
-  function handleUseDevKey() {
-    setKeyInput(DEV_DEFAULT_ADMIN_KEY);
   }
 
   return (
@@ -44,9 +43,16 @@ const ApiKeyModalContent: React.FC<{
         <div className={styles.header}>
           <div className={styles.titleGroup}>
             <div className={styles.iconWrapper}>
-              <Key size={16} />
+              <Key size={15} />
             </div>
-            <h3 className={styles.title}>API Authentication Key</h3>
+            <h3 className={styles.title}>API Authentication</h3>
+            <span
+              className={
+                isConfigured ? styles.statusBadgeConfigured : styles.statusBadgeMissing
+              }
+            >
+              {isConfigured ? 'Active' : 'Unset'}
+            </span>
           </div>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close dialog">
             <X size={16} />
@@ -55,28 +61,16 @@ const ApiKeyModalContent: React.FC<{
 
         <form onSubmit={handleSave}>
           <div className={styles.body}>
-            {isConfigured ? (
-              <div className={`${styles.statusBanner} ${styles.statusConfigured}`}>
-                <Check size={14} />
-                <span>API Key is active and attached to requests</span>
-              </div>
-            ) : (
-              <div className={`${styles.statusBanner} ${styles.statusMissing}`}>
-                <AlertCircle size={14} />
-                <span>No API key active — protected API calls will return 401</span>
-              </div>
-            )}
-
             <div className={styles.inputGroup}>
               <label className={styles.label} htmlFor="api-key-input">
-                API Key or Bearer Token
+                API Key / Bearer Token
               </label>
               <div className={styles.inputWrapper}>
                 <input
                   id="api-key-input"
                   type={showKey ? 'text' : 'password'}
                   className={styles.input}
-                  placeholder="e.g. cp-admin-dev-key-32chars-prod-ready"
+                  placeholder="Paste your API key or Bearer token"
                   value={keyInput}
                   onChange={(e) => setKeyInput(e.target.value)}
                   autoFocus
@@ -93,32 +87,34 @@ const ApiKeyModalContent: React.FC<{
               </div>
             </div>
 
-            <button
-              type="button"
-              className={styles.quickActionBtn}
-              onClick={handleUseDevKey}
-              title="Paste standard development admin key"
-            >
-              <span>Use Default Admin Key</span>
-              <span className={styles.codeInline}>cp-admin-dev-key-32chars-prod-ready</span>
-            </button>
-
-            <div className={styles.helpText}>
-              <strong>Deployment note:</strong> On Vercel, you can also set the{' '}
-              <span className={styles.codeInline}>VITE_API_KEY</span> environment variable in your Vercel Project Settings so all clients authenticate automatically.
-            </div>
+            <label className={styles.checkboxGroup}>
+              <input
+                type="checkbox"
+                className={styles.checkbox}
+                checked={rememberDevice}
+                onChange={(e) => setRememberDevice(e.target.checked)}
+              />
+              <span>Remember on this browser</span>
+            </label>
           </div>
 
           <div className={styles.footer}>
-            {isConfigured && (
+            {isConfigured ? (
               <button type="button" className={styles.clearBtn} onClick={handleClear}>
                 Clear Key
               </button>
+            ) : (
+              <div />
             )}
-            <button type="submit" className={styles.saveBtn}>
-              <Check size={14} />
-              <span>Save & Connect</span>
-            </button>
+            <div className={styles.actionGroup}>
+              <button type="button" className={styles.cancelBtn} onClick={onClose}>
+                Cancel
+              </button>
+              <button type="submit" className={styles.saveBtn}>
+                <Check size={14} />
+                <span>Save Key</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

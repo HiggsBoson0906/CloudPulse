@@ -1,7 +1,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(10, 14, 23, 0.75);
+  background-color: rgba(10, 14, 23, 0.65);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -10,24 +10,29 @@
   animation: fadeIn 0.15s ease-out;
 }
 
+:root[data-theme="light"] .overlay,
+[data-theme="light"] .overlay {
+  background-color: rgba(15, 23, 42, 0.4);
+}
+
 .modal {
   background-color: var(--cp-bg-surface);
   border: 1px solid var(--cp-border-subtle);
   border-radius: var(--cp-radius-md);
   width: 100%;
-  max-width: 480px;
+  max-width: 440px;
   box-shadow: var(--cp-shadow-elevated);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--cp-border-subtle);
   background-color: var(--cp-bg-surface-elevated);
 }
@@ -42,18 +47,40 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--cp-radius-sm);
-  background: rgba(56, 189, 248, 0.12);
+  background: var(--cp-accent-teal-subtle);
   color: var(--cp-accent-teal);
 }
 
 .title {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--cp-text-primary);
+}
+
+.statusBadgeConfigured {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--cp-font-mono);
+  color: var(--cp-status-up);
+  background-color: var(--cp-status-up-bg);
+  border: 1px solid var(--cp-status-up-border);
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.statusBadgeMissing {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--cp-font-mono);
+  color: var(--cp-status-down);
+  background-color: var(--cp-status-down-bg);
+  border: 1px solid var(--cp-status-down-border);
+  padding: 1px 7px;
+  border-radius: 10px;
 }
 
 .closeBtn {
@@ -75,32 +102,10 @@
 }
 
 .body {
-  padding: 20px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.statusBanner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: var(--cp-radius-sm);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.statusMissing {
-  background-color: var(--cp-status-down-bg);
-  border: 1px solid var(--cp-status-down-border);
-  color: var(--cp-status-down);
-}
-
-.statusConfigured {
-  background-color: var(--cp-status-up-bg);
-  border: 1px solid var(--cp-status-up-border);
-  color: var(--cp-status-up);
+  gap: 14px;
 }
 
 .inputGroup {
@@ -135,7 +140,7 @@
 }
 
 .input:focus {
-  border-color: var(--cp-accent-teal);
+  border-color: var(--cp-border-focus);
 }
 
 .toggleVisibilityBtn {
@@ -155,81 +160,79 @@
   color: var(--cp-text-primary);
 }
 
-.quickActionBtn {
-  background-color: var(--cp-bg-well);
-  border: 1px dashed var(--cp-border-strong);
-  border-radius: var(--cp-radius-sm);
-  color: var(--cp-text-secondary);
-  font-size: 11px;
-  padding: 8px 12px;
-  cursor: pointer;
-  text-align: left;
-  transition: all var(--cp-transition-micro);
+.checkboxGroup {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--cp-text-secondary);
+  cursor: pointer;
 }
 
-.quickActionBtn:hover {
-  background-color: var(--cp-bg-surface-elevated);
-  border-color: var(--cp-accent-teal);
-  color: var(--cp-text-primary);
-}
-
-.helpText {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--cp-text-muted);
-  background-color: var(--cp-bg-well);
-  padding: 10px 12px;
-  border-radius: var(--cp-radius-sm);
-  border: 1px solid var(--cp-border-subtle);
-}
-
-.codeInline {
-  font-family: var(--cp-font-mono);
-  color: var(--cp-accent-teal);
-  background: rgba(56, 189, 248, 0.08);
-  padding: 2px 4px;
-  border-radius: 3px;
+.checkbox {
+  accent-color: var(--cp-accent-teal);
+  cursor: pointer;
 }
 
 .footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 20px;
+  justify-content: space-between;
+  padding: 12px 18px;
   background-color: var(--cp-bg-surface-elevated);
   border-top: 1px solid var(--cp-border-subtle);
 }
 
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .clearBtn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--cp-status-down);
+  border-radius: var(--cp-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all var(--cp-transition-micro);
+}
+
+.clearBtn:hover {
+  background-color: var(--cp-status-down-bg);
+  border-color: var(--cp-status-down-border);
+}
+
+.cancelBtn {
   background: none;
   border: 1px solid var(--cp-border-subtle);
   color: var(--cp-text-secondary);
   border-radius: var(--cp-radius-sm);
   font-size: 12px;
   font-weight: 500;
-  padding: 6px 14px;
+  padding: 6px 12px;
   cursor: pointer;
   transition: all var(--cp-transition-micro);
 }
 
-.clearBtn:hover {
+.cancelBtn:hover {
   background-color: var(--cp-bg-well);
-  color: var(--cp-status-down);
-  border-color: var(--cp-status-down-border);
+  color: var(--cp-text-primary);
+  border-color: var(--cp-border-strong);
 }
 
 .saveBtn {
   background-color: var(--cp-accent-teal);
   border: none;
-  color: #0A0E17;
+  color: var(--cp-accent-teal-contrast);
   border-radius: var(--cp-radius-sm);
   font-size: 12px;
   font-weight: 600;
-  padding: 6px 16px;
+  padding: 6px 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -249,7 +252,7 @@
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(6px) scale(0.98);
   }
   to {
     opacity: 1;

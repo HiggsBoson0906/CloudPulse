@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, Clock, Key, RefreshCw } from 'lucide-react';
+import { Activity, Clock, Key, RefreshCw, Sun, Moon } from 'lucide-react';
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -11,6 +11,8 @@ interface HeaderProps {
   isRefreshing: boolean;
   hasApiKey: boolean;
   onOpenKeyModal: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,6 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   isRefreshing,
   hasApiKey,
   onOpenKeyModal,
+  theme,
+  onToggleTheme,
 }) => {
   const [utcTime, setUtcTime] = useState<string>('');
 
@@ -104,6 +108,15 @@ export const Header: React.FC<HeaderProps> = ({
             <Key size={13} />
             <span>{hasApiKey ? 'Key Active' : 'Set API Key'}</span>
             <span className={hasApiKey ? styles.keyDotActive : styles.keyDotMissing} />
+          </button>
+
+          <button
+            className={styles.themeBtn}
+            onClick={onToggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
           </button>
         </div>
       </div>
