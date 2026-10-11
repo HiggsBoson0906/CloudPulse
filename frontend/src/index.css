@@ -17,6 +17,12 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color var(--cp-transition-micro), color var(--cp-transition-micro);
+  caret-color: var(--cp-text-primary);
+}
+
+::selection {
+  background-color: var(--cp-accent-primary);
+  color: var(--cp-accent-contrast);
 }
 
 #root {
@@ -26,19 +32,19 @@ html, body {
   background-color: var(--cp-bg-canvas);
 }
 
-/* Tabular numbers for telemetry */
-.tabular-nums, .mono, [data-mono="true"] {
+/* Tabular numbers for telemetry & data */
+.tabular-nums, .mono, [data-mono="true"], code, pre {
   font-family: var(--cp-font-mono);
   font-variant-numeric: tabular-nums;
 }
 
 /* Accessible Focus States */
-a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--cp-border-focus);
   outline-offset: 2px;
 }
 
-/* Custom Dark Observability Scrollbar */
+/* Custom Observability Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -96,4 +102,3 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 button:active:not(:disabled) {
   transform: translateY(1px);
 }
-

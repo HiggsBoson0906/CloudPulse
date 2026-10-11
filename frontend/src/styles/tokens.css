@@ -1,138 +1,213 @@
 :root {
-  /* Color Palette - Dark Obsidian Foundation (Default) */
-  --cp-bg-canvas: #0B0F17;
-  --cp-bg-surface: #111827;
-  --cp-bg-surface-elevated: #182234;
-  --cp-bg-well: #0E1420;
-  
-  /* Borders */
-  --cp-border-subtle: rgba(255, 255, 255, 0.08);
-  --cp-border-strong: rgba(255, 255, 255, 0.16);
-  --cp-border-focus: #38BDF8;
-  
-  /* Text */
-  --cp-text-primary: #F8FAFC;
-  --cp-text-secondary: #94A3B8;
-  --cp-text-muted: #64748B;
+  /* ==========================================================================
+     CloudPulse Design System Tokens
+     Theme: Obsidian Black (Default Dark)
+     ========================================================================== */
 
-  /* Accent */
-  --cp-accent-teal: #38BDF8;
-  --cp-accent-teal-contrast: #0B0F17;
-  --cp-accent-teal-subtle: rgba(56, 189, 248, 0.12);
-  --cp-accent-teal-border: rgba(56, 189, 248, 0.25);
-  
-  /* Semantic Status Tokens */
+  /* Neutral Obsidian Surfaces */
+  --cp-bg-canvas: #050505;
+  --cp-bg-surface: #0D0D0D;
+  --cp-bg-surface-elevated: #141414;
+  --cp-bg-well: #090909;
+  --cp-bg-card-hover: #171717;
+
+  /* Neutral Borders */
+  --cp-border-subtle: rgba(255, 255, 255, 0.09);
+  --cp-border-strong: rgba(255, 255, 255, 0.18);
+  --cp-border-focus: #FFFFFF;
+
+  /* Typography Colors */
+  --cp-text-primary: #F5F5F5;
+  --cp-text-secondary: #B0B0B0;
+  --cp-text-muted: #858585;
+  --cp-text-inverse: #050505;
+
+  /* Brand / Restrained Neutral Accents */
+  --cp-accent-primary: #F5F5F5;
+  --cp-accent-contrast: #050505;
+  --cp-accent-subtle: rgba(255, 255, 255, 0.08);
+  --cp-accent-border: rgba(255, 255, 255, 0.20);
+  --cp-accent-glow: rgba(255, 255, 255, 0.10);
+
+  /* Backwards compatibility aliases */
+  --cp-accent-teal: var(--cp-accent-primary);
+  --cp-accent-teal-contrast: var(--cp-accent-contrast);
+  --cp-accent-teal-subtle: var(--cp-accent-subtle);
+  --cp-accent-teal-border: var(--cp-accent-border);
+
+  /* Semantic Status Tokens (Accessible & Contrast-Compliant) */
   --cp-status-up: #10B981;
   --cp-status-up-bg: rgba(16, 185, 129, 0.12);
-  --cp-status-up-border: rgba(16, 185, 129, 0.3);
-  
+  --cp-status-up-border: rgba(16, 185, 129, 0.28);
+  --cp-status-up-text: #34D399;
+
   --cp-status-degraded: #F59E0B;
   --cp-status-degraded-bg: rgba(245, 158, 11, 0.12);
-  --cp-status-degraded-border: rgba(245, 158, 11, 0.3);
-  
+  --cp-status-degraded-border: rgba(245, 158, 11, 0.28);
+  --cp-status-degraded-text: #FBBF24;
+
   --cp-status-down: #EF4444;
   --cp-status-down-bg: rgba(239, 68, 68, 0.12);
-  --cp-status-down-border: rgba(239, 68, 68, 0.3);
+  --cp-status-down-border: rgba(239, 68, 68, 0.28);
+  --cp-status-down-text: #F87171;
 
   /* Incident Lifecycle */
   --cp-incident-open: #EF4444;
   --cp-incident-open-bg: rgba(239, 68, 68, 0.12);
+  --cp-incident-open-border: rgba(239, 68, 68, 0.30);
+
   --cp-incident-ack: #F59E0B;
   --cp-incident-ack-bg: rgba(245, 158, 11, 0.12);
-  --cp-incident-resolved: #06B6D4;
-  --cp-incident-resolved-bg: rgba(6, 182, 212, 0.12);
+  --cp-incident-ack-border: rgba(245, 158, 11, 0.30);
 
-  /* Alert Severity */
-  --cp-sev-low: #94A3B8;
-  --cp-sev-med: #3B82F6;
+  --cp-incident-resolved: #10B981;
+  --cp-incident-resolved-bg: rgba(16, 185, 129, 0.12);
+  --cp-incident-resolved-border: rgba(16, 185, 129, 0.30);
+
+  /* Alert Severity Hierarchy */
+  --cp-sev-low: #858585;
+  --cp-sev-low-bg: rgba(133, 133, 133, 0.12);
+  --cp-sev-low-border: rgba(133, 133, 133, 0.25);
+
+  --cp-sev-med: #D4D4D8;
+  --cp-sev-med-bg: rgba(212, 212, 216, 0.12);
+  --cp-sev-med-border: rgba(212, 212, 216, 0.28);
+
   --cp-sev-high: #F59E0B;
-  --cp-sev-crit: #EF4444;
+  --cp-sev-high-bg: rgba(245, 158, 11, 0.12);
+  --cp-sev-high-border: rgba(245, 158, 11, 0.30);
 
-  /* Typography */
-  --cp-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  --cp-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
-  
+  --cp-sev-crit: #EF4444;
+  --cp-sev-crit-bg: rgba(239, 68, 68, 0.14);
+  --cp-sev-crit-border: rgba(239, 68, 68, 0.35);
+
+  /* Typography Stacks (IBM Plex Sans & IBM Plex Mono) */
+  --cp-font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --cp-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Typography Responsive Scale */
+  --cp-text-display: clamp(28px, 2.5vw, 34px);
+  --cp-text-heading: clamp(20px, 1.8vw, 24px);
+  --cp-text-subheading: 18px;
+  --cp-text-card-title: 16px;
+  --cp-text-body: 15px;
+  --cp-text-table: 14px;
+  --cp-text-meta: 13px;
+  --cp-text-kpi: clamp(32px, 3vw, 40px);
+
   /* Operational Dimensions */
   --cp-header-height: 58px;
-  --cp-sidebar-width: 220px;
-  --cp-sidebar-collapsed-width: 72px;
+  --cp-rail-width: 68px;
+  --cp-rail-expanded-width: 240px;
   --cp-row-height: 48px;
   --cp-input-height: 40px;
   --cp-card-padding: 22px;
-  --cp-radius-sm: 5px;
-  --cp-radius-md: 8px;
-  --cp-radius-lg: 10px;
+  --cp-radius-sm: 6px;
+  --cp-radius-md: 10px;
+  --cp-radius-lg: 12px;
 
-  /* Shadows and Glows */
-  --cp-shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
-  --cp-shadow-elevated: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-  --cp-shadow-glow-cyan: 0 0 15px rgba(56, 189, 248, 0.25);
-  --cp-shadow-glow-emerald: 0 0 15px rgba(16, 185, 129, 0.25);
-  --cp-shadow-glow-rose: 0 0 15px rgba(239, 68, 68, 0.25);
+  /* Shadows (Neutral, no colored halos) */
+  --cp-shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --cp-shadow-elevated: 0 12px 30px -6px rgba(0, 0, 0, 0.8), 0 8px 12px -4px rgba(0, 0, 0, 0.6);
+  --cp-shadow-glow-neutral: 0 0 20px rgba(255, 255, 255, 0.06);
 
   /* Motion & Transitions */
-  --cp-transition-micro: 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  --cp-transition-spring: 300ms cubic-bezier(0.16, 1, 0.3, 1);
-  --cp-transition-drawer: 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  --cp-transition-micro: 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  --cp-transition-spring: 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  --cp-transition-drawer: 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ==========================================================================
+   Warm Parchment / Muted Ivory Light Theme
+   Soft warm-neutral palette — balanced between yellow cream and pure white.
+
+   Canvas:   #EDE9DF
+   Surface:  #F5F1E8
+   Elevated: #FAF7EF
+   Well:     #E5E0D4
+   Hover:    #E8E3D7
+
+   Text:     #211F1A
+   Secondary:#514F48
+   Muted:    #706B61
+   ========================================================================== */
 :root[data-theme="light"],
 [data-theme="light"] {
-  /* Color Palette - Clean Crisp Light Foundation */
-  --cp-bg-canvas: #F8FAFC;
-  --cp-bg-surface: #FFFFFF;
-  --cp-bg-surface-elevated: #F1F5F9;
-  --cp-bg-well: #E2E8F0;
-  
-  /* Borders */
-  --cp-border-subtle: rgba(15, 23, 42, 0.08);
-  --cp-border-strong: rgba(15, 23, 42, 0.16);
-  --cp-border-focus: #0284C7;
-  
-  /* Text */
-  --cp-text-primary: #0F172A;
-  --cp-text-secondary: #475569;
-  --cp-text-muted: #64748B;
+  /* Warm Parchment Surfaces */
+  --cp-bg-canvas: #EDE9DF;
+  --cp-bg-surface: #F5F1E8;
+  --cp-bg-surface-elevated: #FAF7EF;
+  --cp-bg-well: #E5E0D4;
+  --cp-bg-card-hover: #E8E3D7;
 
-  /* Accent */
-  --cp-accent-teal: #0284C7;
-  --cp-accent-teal-contrast: #FFFFFF;
-  --cp-accent-teal-subtle: rgba(2, 132, 199, 0.10);
-  --cp-accent-teal-border: rgba(2, 132, 199, 0.25);
+  /* Warm Muted Neutral Borders */
+  --cp-border-subtle: rgba(33, 31, 26, 0.12);
+  --cp-border-strong: rgba(33, 31, 26, 0.22);
+  --cp-border-focus: #211F1A;
 
-  /* Semantic Status Tokens */
+  /* High-Contrast Warm Typography */
+  --cp-text-primary: #211F1A;
+  --cp-text-secondary: #514F48;
+  --cp-text-muted: #706B61;
+  --cp-text-inverse: #F5F1E8;
+
+  /* Brand / Restrained Warm Neutral Accents */
+  --cp-accent-primary: #211F1A;
+  --cp-accent-contrast: #F5F1E8;
+  --cp-accent-subtle: rgba(33, 31, 26, 0.07);
+  --cp-accent-border: rgba(33, 31, 26, 0.20);
+  --cp-accent-glow: rgba(33, 31, 26, 0.04);
+
+  /* Semantic Status Tokens (Optimized for ivory backgrounds) */
   --cp-status-up: #059669;
   --cp-status-up-bg: rgba(5, 150, 105, 0.10);
-  --cp-status-up-border: rgba(5, 150, 105, 0.25);
-  
+  --cp-status-up-border: rgba(5, 150, 105, 0.26);
+  --cp-status-up-text: #065F46;
+
   --cp-status-degraded: #D97706;
   --cp-status-degraded-bg: rgba(217, 119, 6, 0.10);
-  --cp-status-degraded-border: rgba(217, 119, 6, 0.25);
-  
+  --cp-status-degraded-border: rgba(217, 119, 6, 0.26);
+  --cp-status-degraded-text: #92400E;
+
   --cp-status-down: #DC2626;
   --cp-status-down-bg: rgba(220, 38, 38, 0.10);
-  --cp-status-down-border: rgba(220, 38, 38, 0.25);
+  --cp-status-down-border: rgba(220, 38, 38, 0.26);
+  --cp-status-down-text: #991B1B;
 
   /* Incident Lifecycle */
   --cp-incident-open: #DC2626;
   --cp-incident-open-bg: rgba(220, 38, 38, 0.10);
+  --cp-incident-open-border: rgba(220, 38, 38, 0.26);
+
   --cp-incident-ack: #D97706;
   --cp-incident-ack-bg: rgba(217, 119, 6, 0.10);
-  --cp-incident-resolved: #0891B2;
-  --cp-incident-resolved-bg: rgba(8, 145, 178, 0.10);
+  --cp-incident-ack-border: rgba(217, 119, 6, 0.26);
 
-  /* Alert Severity */
-  --cp-sev-low: #64748B;
-  --cp-sev-med: #2563EB;
+  --cp-incident-resolved: #059669;
+  --cp-incident-resolved-bg: rgba(5, 150, 105, 0.10);
+  --cp-incident-resolved-border: rgba(5, 150, 105, 0.26);
+
+  /* Alert Severity Hierarchy */
+  --cp-sev-low: #79766E;
+  --cp-sev-low-bg: rgba(121, 118, 110, 0.10);
+  --cp-sev-low-border: rgba(121, 118, 110, 0.22);
+
+  --cp-sev-med: #514F48;
+  --cp-sev-med-bg: rgba(81, 79, 72, 0.10);
+  --cp-sev-med-border: rgba(81, 79, 72, 0.24);
+
   --cp-sev-high: #D97706;
-  --cp-sev-crit: #DC2626;
+  --cp-sev-high-bg: rgba(217, 119, 6, 0.10);
+  --cp-sev-high-border: rgba(217, 119, 6, 0.26);
 
-  /* Shadows and Glows */
-  --cp-shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --cp-shadow-elevated: 0 10px 25px -5px rgba(15, 23, 42, 0.10), 0 8px 10px -6px rgba(15, 23, 42, 0.06);
-  --cp-shadow-glow-cyan: 0 0 15px rgba(2, 132, 199, 0.12);
-  --cp-shadow-glow-emerald: 0 0 15px rgba(5, 150, 105, 0.12);
-  --cp-shadow-glow-rose: 0 0 15px rgba(220, 38, 38, 0.12);
+  --cp-sev-crit: #DC2626;
+  --cp-sev-crit-bg: rgba(220, 38, 38, 0.10);
+  --cp-sev-crit-border: rgba(220, 38, 38, 0.26);
+
+  /* Shadows (Subtle warm drop shadows) */
+  --cp-shadow-subtle: 0 1px 3px rgba(81, 79, 72, 0.08), 0 1px 2px rgba(81, 79, 72, 0.05);
+  --cp-shadow-elevated: 0 12px 28px -6px rgba(81, 79, 72, 0.12), 0 8px 12px -4px rgba(81, 79, 72, 0.06);
+  --cp-shadow-glow-neutral: 0 0 16px rgba(81, 79, 72, 0.05);
 }
 
 /* Reduced Motion Override */

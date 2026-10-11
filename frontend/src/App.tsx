@@ -25,13 +25,27 @@ import type {
 import appStyles from './components/layout/AppShell.module.css';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'services' || tabParam === 'alerts' || tabParam === 'incidents' || tabParam === 'overview') {
+        return tabParam;
+      }
+    }
+    return 'overview';
+  });
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(() => Boolean(api.getApiKey()));
 
   // Theme Management (Dark / Light Mode)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const themeParam = params.get('theme');
+      if (themeParam === 'light' || themeParam === 'dark') return themeParam;
+    }
     if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem('cloudpulse_theme');
       if (saved === 'dark' || saved === 'light') return saved;
@@ -69,6 +83,7 @@ export function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   const [isTabActive, setIsTabActive] = useState<boolean>(!document.hidden);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
   const isFetchingRef = useRef<boolean>(false);
 
   // Toast Feedback State
@@ -338,28 +353,37 @@ export function App() {
 
   return (
     <div className={appStyles.container}>
-      <Header
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setSelectedServiceId(null);
+          setActiveTab(tab);
+        }}
         activeIncidentsCount={activeIncidentsCount}
-        hasDegradation={hasDegradation}
-        autoRefreshInterval={autoRefreshInterval}
-        onIntervalChange={setAutoRefreshInterval}
-        onManualRefresh={() => fetchAllData(true)}
-        isRefreshing={isRefreshing}
-        hasApiKey={hasApiKey}
-        onOpenKeyModal={() => setIsKeyModalOpen(true)}
-        theme={theme}
-        onToggleTheme={toggleTheme}
+        activeAlertsCount={firingAlertsCount}
+        healthyServicesCount={
+          summary?.healthyServices ??
+          services.filter((s) => s.isEnabled && latestChecks[s.id]?.isSuccess !== false).length
+        }
+        failingServicesCount={Math.max(failingCount + degradedCount, probeFailingCount)}
+        totalServicesCount={summary?.totalServices ?? services.length}
+        isMobileOpen={isMobileNavOpen}
+        onCloseMobile={() => setIsMobileNavOpen(false)}
       />
 
-      <div className={appStyles.body}>
-        <Sidebar
-          activeTab={activeTab}
-          onTabChange={(tab) => {
-            setSelectedServiceId(null);
-            setActiveTab(tab);
-          }}
+      <div className={appStyles.mainWrapper}>
+        <Header
           activeIncidentsCount={activeIncidentsCount}
-          activeAlertsCount={firingAlertsCount}
+          hasDegradation={hasDegradation}
+          autoRefreshInterval={autoRefreshInterval}
+          onIntervalChange={setAutoRefreshInterval}
+          onManualRefresh={() => fetchAllData(true)}
+          isRefreshing={isRefreshing}
+          hasApiKey={hasApiKey}
+          onOpenKeyModal={() => setIsKeyModalOpen(true)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onOpenMobileNav={() => setIsMobileNavOpen(true)}
         />
 
         <main className={appStyles.mainContent}>
@@ -386,6 +410,7 @@ export function App() {
           ) : activeTab === 'services' ? (
             <ServicesView
               services={services}
+              latestChecks={latestChecks}
               onCreateService={handleCreateService}
               onUpdateService={handleUpdateService}
               onDeleteService={handleDeleteService}
@@ -404,6 +429,7 @@ export function App() {
           ) : (
             <IncidentsView
               incidents={incidents}
+              services={services}
               onAcknowledge={handleAcknowledgeIncident}
               onResolve={handleResolveIncident}
               isLoading={isLoading}

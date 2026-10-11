@@ -1,21 +1,37 @@
 .container {
   display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+  flex-direction: row;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
   background-color: var(--cp-bg-canvas);
+  color: var(--cp-text-primary);
+  overflow: hidden;
+  position: relative;
 }
 
-.body {
+.mainWrapper {
   display: flex;
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
-  height: calc(100vh - var(--cp-header-height));
+  position: relative;
 }
 
 .mainContent {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px 28px;
+  padding: clamp(16px, 2vw, 28px) clamp(16px, 2.5vw, 36px);
   background-color: var(--cp-bg-canvas);
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 14px 12px;
+  }
 }

@@ -3,9 +3,19 @@ import { getCheckError, getCheckLatency, type HealthCheckResult } from '../../ty
 
 interface LatencyChartProps {
   checks: HealthCheckResult[];
+  compact?: boolean;
 }
 
-export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  } catch {
+    return '';
+  }
+}
+
+export const LatencyChart: React.FC<LatencyChartProps> = ({ checks, compact = false }) => {
   const [hoveredCheck, setHoveredCheck] = useState<HealthCheckResult | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -13,7 +23,7 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
     return (
       <div
         style={{
-          height: '200px',
+          minHeight: compact ? '160px' : '220px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -23,32 +33,85 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
           gap: '8px',
           border: '1px dashed var(--cp-border-subtle)',
           borderRadius: 'var(--cp-radius-md)',
+          backgroundColor: 'var(--cp-bg-well)',
+          padding: '20px',
+          textAlign: 'center',
         }}
       >
-        <span>No probe samples recorded for this timeframe yet.</span>
-        <span style={{ fontSize: '11px', color: 'var(--cp-text-muted)' }}>
-          Telemetry will appear automatically as health checks execute.
+        <span>No probe telemetry recorded for this service yet.</span>
+        <span style={{ fontSize: '11px', color: 'var(--cp-text-muted)', maxWidth: '340px' }}>
+          Historical data points will populate automatically as health check probes execute.
         </span>
       </div>
     );
   }
 
-  // Chronological order: older checks on left, recent checks on right
+  // Single probe measurement: truthful representation without pretending to be a trend line
+  if (checks.length === 1) {
+    const single = checks[0];
+    const lat = getCheckLatency(single);
+    return (
+      <div
+        style={{
+          minHeight: compact ? '160px' : '220px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--cp-text-secondary)',
+          fontSize: '13px',
+          gap: '8px',
+          border: '1px dashed var(--cp-border-subtle)',
+          borderRadius: 'var(--cp-radius-md)',
+          backgroundColor: 'var(--cp-bg-well)',
+          padding: '20px',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: single.isSuccess ? 'var(--cp-status-up)' : 'var(--cp-status-down)',
+            }}
+          />
+          <strong>
+            Single probe recorded: {lat !== null ? `${lat}ms` : '—'} (
+            {single.isSuccess ? `HTTP ${single.statusCode ?? 200}` : 'Failed'}
+            )
+          </strong>
+        </div>
+        <span style={{ fontSize: '11px', color: 'var(--cp-text-muted)', fontFamily: 'var(--cp-font-mono)' }}>
+          {new Date(single.checkTimestamp).toLocaleString()}
+        </span>
+        <span style={{ fontSize: '11px', color: 'var(--cp-text-muted)', maxWidth: '340px' }}>
+          Additional probe data points will populate automatically to form a time-series history.
+        </span>
+      </div>
+    );
+  }
+
+  // Chronological order: oldest checks on left, most recent on right
   const chronological = [...checks].reverse();
   const latencies = chronological.map((c) => getCheckLatency(c) ?? 0);
   const minLatency = latencies.length > 0 ? Math.min(...latencies) : 0;
-  const maxLatency = Math.max(...latencies, 50); // at least 50ms scale
+  const maxLatency = Math.max(...latencies, 50); // at least 50ms vertical scale
   const avgLatency =
     latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0;
   const successCount = chronological.filter((c) => c.isSuccess).length;
   const successRate = ((successCount / chronological.length) * 100).toFixed(1);
-  const yMax = Math.ceil(maxLatency * 1.2); // 20% headroom
+  const yMax = Math.ceil(maxLatency * 1.25); // 25% headroom
 
-  const width = 800;
-  const height = 190;
-  const padding = { top: 20, right: 30, bottom: 30, left: 55 };
+  const width = compact ? 520 : 860;
+  const height = compact ? 200 : 220;
+  const padding = compact
+    ? { top: 16, right: 20, bottom: 34, left: 52 }
+    : { top: 24, right: 36, bottom: 36, left: 60 };
   const graphWidth = width - padding.left - padding.right;
   const graphHeight = height - padding.top - padding.bottom;
+  const bottomY = padding.top + graphHeight;
 
   const points = chronological.map((c, i) => {
     const lat = getCheckLatency(c) ?? 0;
@@ -63,51 +126,91 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
 
   const firstPoint = points[0];
   const lastPoint = points[points.length - 1];
-  const bottomY = padding.top + graphHeight;
   const areaPath = `${linePath} L ${lastPoint.x} ${bottomY} L ${firstPoint.x} ${bottomY} Z`;
-
   const avgY = padding.top + graphHeight - (avgLatency / yMax) * graphHeight;
+
+  // Real timestamp ticks along X-axis
+  const xTicks = [
+    { x: points[0].x, time: formatTime(chronological[0].checkTimestamp), anchor: 'start' as const },
+    {
+      x: points[Math.floor((points.length - 1) / 2)].x,
+      time: formatTime(chronological[Math.floor((chronological.length - 1) / 2)].checkTimestamp),
+      anchor: 'middle' as const,
+    },
+    {
+      x: points[points.length - 1].x,
+      time: formatTime(chronological[chronological.length - 1].checkTimestamp),
+      anchor: 'end' as const,
+    },
+  ];
+
+  const yTicks = compact ? [0, 0.5, 1] : [0, 0.25, 0.5, 0.75, 1];
 
   return (
     <div style={{ position: 'relative', width: '100%', overflow: 'hidden' }}>
-      {/* Telemetry Summary Strip */}
+      {/* Telemetry Summary Stats Header Strip */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '16px',
+          gap: compact ? '12px' : '20px',
           marginBottom: '12px',
           flexWrap: 'wrap',
-          fontSize: '11px',
+          fontSize: compact ? '11px' : '13px',
           fontFamily: 'var(--cp-font-mono)',
           color: 'var(--cp-text-secondary)',
+          paddingBottom: '8px',
+          borderBottom: '1px solid var(--cp-border-subtle)',
+          justifyContent: compact ? 'space-between' : 'flex-start',
         }}
       >
-        <span style={{ color: 'var(--cp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Window Stats:
+        {!compact && (
+          <span style={{ color: 'var(--cp-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px', fontWeight: 600 }}>
+            Window Telemetry:
+          </span>
+        )}
+        <span>
+          Samples: <strong style={{ color: 'var(--cp-text-primary)' }}>{chronological.length}</strong>
         </span>
-        <span>Samples: <strong style={{ color: 'var(--cp-text-primary)' }}>{chronological.length}</strong></span>
-        <span>Min: <strong style={{ color: 'var(--cp-status-up)' }}>{minLatency}ms</strong></span>
-        <span>Avg: <strong style={{ color: 'var(--cp-accent-teal)' }}>{avgLatency}ms</strong></span>
-        <span>Max: <strong style={{ color: maxLatency > 300 ? 'var(--cp-status-down)' : 'var(--cp-text-primary)' }}>{maxLatency}ms</strong></span>
-        <span>Success: <strong style={{ color: Number(successRate) >= 99 ? 'var(--cp-status-up)' : 'var(--cp-status-degraded)' }}>{successRate}%</strong></span>
+        <span>
+          Min: <strong style={{ color: 'var(--cp-status-up)' }}>{minLatency}ms</strong>
+        </span>
+        <span>
+          Mean: <strong style={{ color: 'var(--cp-text-primary)' }}>{avgLatency}ms</strong>
+        </span>
+        <span>
+          Max:{' '}
+          <strong style={{ color: maxLatency > 300 ? 'var(--cp-status-down)' : 'var(--cp-text-primary)' }}>
+            {maxLatency}ms
+          </strong>
+        </span>
+        <span>
+          Success:{' '}
+          <strong
+            style={{
+              color: Number(successRate) >= 99 ? 'var(--cp-status-up)' : 'var(--cp-status-degraded)',
+            }}
+          >
+            {successRate}%
+          </strong>
+        </span>
       </div>
 
       <svg
         viewBox={`0 0 ${width} ${height}`}
         style={{ width: '100%', height: 'auto', display: 'block' }}
         role="img"
-        aria-label="Response Time Telemetry Chart"
+        aria-label="Service Response Time Telemetry Graph"
       >
         <defs>
           <linearGradient id="latencyAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--cp-accent-teal)" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="var(--cp-accent-teal)" stopOpacity="0.00" />
+            <stop offset="0%" stopColor="var(--cp-text-primary)" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="var(--cp-text-primary)" stopOpacity="0.01" />
           </linearGradient>
         </defs>
 
         {/* Horizontal Grid lines */}
-        {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
+        {yTicks.map((pct) => {
           const yVal = padding.top + graphHeight * (1 - pct);
           const labelVal = Math.round(yMax * pct);
           return (
@@ -118,13 +221,13 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
                 x2={width - padding.right}
                 y2={yVal}
                 stroke="var(--cp-border-subtle)"
-                strokeDasharray="3 3"
+                strokeDasharray="4 4"
               />
               <text
                 x={padding.left - 8}
                 y={yVal + 4}
                 textAnchor="end"
-                fontSize="10"
+                fontSize={compact ? '10' : '11'}
                 fill="var(--cp-text-muted)"
                 fontFamily="var(--cp-font-mono)"
               >
@@ -134,15 +237,15 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
           );
         })}
 
-        {/* Avg Latency Reference Line */}
+        {/* Mean Latency Reference Line */}
         <line
           x1={padding.left}
           y1={avgY}
           x2={width - padding.right}
           y2={avgY}
-          stroke="var(--cp-accent-teal-border)"
-          strokeDasharray="4 2"
-          strokeWidth="1"
+          stroke="var(--cp-border-strong)"
+          strokeDasharray="5 3"
+          strokeWidth="1.5"
         />
 
         {/* Area fill */}
@@ -152,11 +255,43 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
         <path
           d={linePath}
           fill="none"
-          stroke="var(--cp-accent-teal)"
-          strokeWidth="2"
+          stroke="var(--cp-text-primary)"
+          strokeWidth={compact ? '1.8' : '2'}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+
+        {/* X-axis Baseline & Real Check Timestamp Ticks */}
+        <line
+          x1={padding.left}
+          y1={bottomY}
+          x2={width - padding.right}
+          y2={bottomY}
+          stroke="var(--cp-border-strong)"
+          strokeWidth="1"
+        />
+        {xTicks.map((tick, idx) => (
+          <g key={idx}>
+            <line
+              x1={tick.x}
+              y1={bottomY}
+              x2={tick.x}
+              y2={bottomY + 4}
+              stroke="var(--cp-border-strong)"
+              strokeWidth="1"
+            />
+            <text
+              x={tick.x}
+              y={bottomY + 16}
+              textAnchor={tick.anchor}
+              fontSize={compact ? '10' : '11'}
+              fill="var(--cp-text-muted)"
+              fontFamily="var(--cp-font-mono)"
+            >
+              {tick.time}
+            </text>
+          </g>
+        ))}
 
         {/* Data points */}
         {points.map((p, idx) => (
@@ -164,7 +299,7 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
             key={idx}
             cx={p.x}
             cy={p.y}
-            r={p.check === hoveredCheck ? 5 : 3}
+            r={p.check === hoveredCheck ? (compact ? 5 : 6) : compact ? 3 : 3.5}
             fill={p.check.isSuccess ? 'var(--cp-status-up)' : 'var(--cp-status-down)'}
             stroke="var(--cp-bg-surface)"
             strokeWidth="1.5"
@@ -187,13 +322,13 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
         ))}
       </svg>
 
-      {/* Crosshair Tooltip */}
+      {/* Crosshair Diagnostic Tooltip */}
       {hoveredCheck && hoverPos && (
         <div
           style={{
             position: 'absolute',
-            left: `${Math.min(Math.max(hoverPos.x - 70, 10), 650)}px`,
-            top: `${Math.max(hoverPos.y - 75, 5)}px`,
+            left: `${Math.min(Math.max(hoverPos.x - 70, 8), compact ? 260 : 680)}px`,
+            top: `${Math.max(hoverPos.y - 75, 6)}px`,
             backgroundColor: 'var(--cp-bg-surface-elevated)',
             border: '1px solid var(--cp-border-strong)',
             borderRadius: 'var(--cp-radius-sm)',
@@ -207,17 +342,22 @@ export const LatencyChart: React.FC<LatencyChartProps> = ({ checks }) => {
             whiteSpace: 'nowrap',
           }}
         >
-          <div>
-            <strong>{getCheckLatency(hoveredCheck) !== null ? `${getCheckLatency(hoveredCheck)}ms` : '—'}</strong> · Status:{' '}
-            <span style={{ color: hoveredCheck.isSuccess ? 'var(--cp-status-up)' : 'var(--cp-status-down)' }}>
-              {hoveredCheck.statusCode ?? 'ERR'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <strong>{getCheckLatency(hoveredCheck) !== null ? `${getCheckLatency(hoveredCheck)}ms` : '—'}</strong>
+            <span
+              style={{
+                color: hoveredCheck.isSuccess ? 'var(--cp-status-up)' : 'var(--cp-status-down)',
+                fontWeight: 600,
+              }}
+            >
+              {hoveredCheck.isSuccess ? `HTTP ${hoveredCheck.statusCode ?? 200}` : `FAIL (${hoveredCheck.statusCode ?? 'ERR'})`}
             </span>
           </div>
-          <div style={{ color: 'var(--cp-text-muted)', fontSize: '10px' }}>
+          <div style={{ color: 'var(--cp-text-muted)', fontSize: '10px', marginTop: 2 }}>
             {new Date(hoveredCheck.checkTimestamp).toLocaleTimeString()}
           </div>
           {!hoveredCheck.isSuccess && getCheckError(hoveredCheck) && (
-            <div style={{ color: 'var(--cp-status-down)', fontSize: '10px' }}>
+            <div style={{ color: 'var(--cp-status-down)', fontSize: '10px', marginTop: 2, maxWidth: 220, whiteSpace: 'normal' }}>
               {getCheckError(hoveredCheck)}
             </div>
           )}

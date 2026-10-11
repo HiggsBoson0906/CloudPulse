@@ -1,17 +1,19 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle,
   CheckCircle2,
   Check,
+  Copy,
   RefreshCw,
-  MoreHorizontal,
   ArrowUpDown,
-  ArrowRight,
-  TrendingUp,
-  ChevronDown,
+  Search,
+  Activity,
+  ShieldCheck,
+  ExternalLink,
 } from 'lucide-react';
 import type { Alert, DashboardSummary, HealthCheckResult, Incident, ServiceRecord } from '../types';
 import { getCheckLatency, getCheckError } from '../types';
+import { api } from '../api/client';
+import { LatencyChart } from '../components/telemetry/LatencyChart';
 import styles from './OverviewView.module.css';
 
 interface OverviewViewProps {
@@ -63,9 +65,9 @@ function computeServiceHealth(
     if (!latestCheck.isSuccess) {
       const errReason = getCheckError(latestCheck);
       const errLabel = latestCheck.statusCode
-        ? `Probe Failing (${latestCheck.statusCode})`
+        ? `Failing (${latestCheck.statusCode})`
         : errReason
-        ? `Probe Failing (${errReason.length > 20 ? errReason.slice(0, 18) + '…' : errReason})`
+        ? `Failing (${errReason.length > 18 ? errReason.slice(0, 16) + '…' : errReason})`
         : 'Probe Failing';
       return { status: 'down', label: errLabel, latencyMs, priority: 1 };
     }
@@ -73,55 +75,6 @@ function computeServiceHealth(
   }
 
   return { status: 'unknown', label: 'Pending Check', latencyMs: null, priority: 3 };
-}
-
-/** Micro sparkline chart for the p95 telemetry panel */
-function SparklineChart({ data, color = '#38BDF8' }: { data: number[]; color?: string }) {
-  if (data.length < 2) return null;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = Math.max(max - min, 1);
-  const w = 260;
-  const h = 80;
-  const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
-    const y = h - ((v - min) / range) * (h - 12) - 4;
-    return `${x},${y}`;
-  });
-  const pathD = `M ${pts.join(' L ')}`;
-  const areaD = `M ${pts[0]} L ${pts.join(' L ')} L ${(data.length - 1) * (w / (data.length - 1))},${h} L 0,${h} Z`;
-
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: 'visible' }}>
-      <defs>
-        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill="url(#areaGrad)" />
-      <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      {/* Last point dot */}
-      <circle
-        cx={w}
-        cy={parseFloat(pts[pts.length - 1].split(',')[1])}
-        r={3}
-        fill={color}
-      />
-    </svg>
-  );
-}
-
-/** Simulate p95 latency data from real latency checks */
-function buildSparkData(services: ServiceRecord[], latestChecks: Record<string, HealthCheckResult | null>): number[] {
-  // Generate pseudo-sparkline from the real latency values with some variance
-  const base = services
-    .map((s) => getCheckLatency(latestChecks[s.id]))
-    .filter((v): v is number => v !== null && v >= 0);
-  if (base.length === 0) return [10, 12, 11, 15, 13, 18, 14, 12, 16, 19, 22, 20, 18, 21, 17];
-  const avg = base.reduce((a, b) => a + b, 0) / base.length;
-  // 15-point sparkline centered around avg
-  return Array.from({ length: 15 }, (_, i) => Math.max(0, avg + Math.sin(i * 0.9) * avg * 0.3 + (i % 3) * 2));
 }
 
 type SortKey = 'name' | 'env' | 'latency' | 'status';
@@ -136,31 +89,115 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onResolveIncident,
   onSelectService,
   isLoading,
+  lastRefreshedAt,
   isRefreshing = false,
 }) => {
   const [sortKey, setSortKey] = useState<SortKey>('status');
   const [sortAsc, setSortAsc] = useState(true);
-  const [sparkWindow, setSparkWindow] = useState<'60' | '30' | '15'>('60');
+  const [searchFilter, setSearchFilter] = useState('');
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [copiedEndpointId, setCopiedEndpointId] = useState<string | null>(null);
 
-  const activeIncidents = incidents.filter(
-    (inc) => inc.status === 'OPEN' || inc.status === 'ACKNOWLEDGED'
+  const activeIncidents = useMemo(
+    () => incidents.filter((inc) => inc.status === 'OPEN' || inc.status === 'ACKNOWLEDGED'),
+    [incidents]
   );
-  const firingAlerts = alerts.filter((alt) => alt.status === 'firing');
-  const enabledServices = services.filter((s) => s.isEnabled);
+  const firingAlerts = useMemo(() => alerts.filter((alt) => alt.status === 'firing'), [alerts]);
+  const enabledServices = useMemo(() => services.filter((s) => s.isEnabled), [services]);
+
   const healthyCount = summary?.healthyServices ?? 0;
   const failingCount = Math.max(
     summary?.failingServices ?? 0,
-    enabledServices.filter((s) => computeServiceHealth(s, incidents, alerts, latestChecks[s.id]).status === 'down').length
+    enabledServices.filter(
+      (s) => computeServiceHealth(s, incidents, alerts, latestChecks[s.id]).status === 'down'
+    ).length
   );
   const availability = summary?.overallAvailabilityPercent;
 
-  const sparkData = useMemo(() => buildSparkData(services, latestChecks), [services, latestChecks]);
+  // Service selector state for historical probe graph
+  const [selectedGraphServiceId, setSelectedGraphServiceId] = useState<string | null>(null);
+  const [graphChecks, setGraphChecks] = useState<HealthCheckResult[]>([]);
+  const [isGraphLoading, setIsGraphLoading] = useState<boolean>(false);
 
-  // Primary service for telemetry chart label
-  const primaryService = services.find((s) => s.isEnabled) ?? null;
+  // Fallback gracefully if selected service is deleted or unset
+  const activeService = useMemo(() => {
+    if (services.length === 0) return null;
+    const match = services.find((s) => s.id === selectedGraphServiceId);
+    return match ?? services[0];
+  }, [services, selectedGraphServiceId]);
+
+  // Fetch real persisted checks from backend
+  useEffect(() => {
+    let ignore = false;
+    const targetId = activeService?.id;
+    if (!targetId) return;
+
+    queueMicrotask(() => {
+      if (!ignore) setIsGraphLoading(true);
+    });
+
+    api.getServiceChecks(targetId, 50)
+      .then((data) => {
+        if (!ignore) {
+          setGraphChecks(Array.isArray(data) ? data : []);
+        }
+      })
+      .catch((err) => {
+        console.warn(`Failed to fetch probe history for service ${targetId}:`, err);
+        if (!ignore) {
+          setGraphChecks([]);
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setIsGraphLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [activeService?.id, lastRefreshedAt]);
+
+  const displayedChecks = useMemo(() => (activeService ? graphChecks : []), [activeService, graphChecks]);
+
+  const activeServiceLatency = useMemo(() => {
+    if (!activeService) return null;
+    const latest = latestChecks[activeService.id] ?? displayedChecks[0] ?? null;
+    return getCheckLatency(latest);
+  }, [activeService, latestChecks, displayedChecks]);
+
+  const timeRangeLabel = useMemo(() => {
+    if (displayedChecks.length < 2) return null;
+    const newestTime = new Date(displayedChecks[0].checkTimestamp).getTime();
+    const oldestTime = new Date(displayedChecks[displayedChecks.length - 1].checkTimestamp).getTime();
+    const diffMs = Math.max(0, newestTime - oldestTime);
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin >= 60) {
+      const diffHours = (diffMin / 60).toFixed(1);
+      return `Trailing ${displayedChecks.length} checks (~${diffHours}h range)`;
+    }
+    if (diffMin >= 1) {
+      return `Trailing ${displayedChecks.length} checks (~${diffMin}m range)`;
+    }
+    return `Trailing ${displayedChecks.length} checks (<1m range)`;
+  }, [displayedChecks]);
+
+  // Filter and sort services
+  const filteredServices = useMemo(() => {
+    return services.filter((s) => {
+      if (!searchFilter.trim()) return true;
+      const q = searchFilter.toLowerCase();
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.baseUrl.toLowerCase().includes(q) ||
+        s.environment.toLowerCase().includes(q)
+      );
+    });
+  }, [services, searchFilter]);
 
   const sortedServices = useMemo(() => {
-    return [...services].sort((a, b) => {
+    return [...filteredServices].sort((a, b) => {
       const hA = computeServiceHealth(a, incidents, alerts, latestChecks[a.id]);
       const hB = computeServiceHealth(b, incidents, alerts, latestChecks[b.id]);
       let cmp = 0;
@@ -170,93 +207,130 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       else cmp = hA.priority - hB.priority;
       return sortAsc ? cmp : -cmp;
     });
-  }, [services, incidents, alerts, latestChecks, sortKey, sortAsc]);
+  }, [filteredServices, incidents, alerts, latestChecks, sortKey, sortAsc]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortAsc((v) => !v);
-    else { setSortKey(key); setSortAsc(true); }
+    else {
+      setSortKey(key);
+      setSortAsc(true);
+    }
   }
 
-  // Stat cards definition
+  async function handleAck(id: string) {
+    try {
+      setActionInProgress(id);
+      await onAcknowledgeIncident(id);
+    } finally {
+      setActionInProgress(null);
+    }
+  }
+
+  async function handleResolve(id: string) {
+    try {
+      setActionInProgress(id);
+      await onResolveIncident(id);
+    } finally {
+      setActionInProgress(null);
+    }
+  }
+
+  // Stat cards definition with high visual hierarchy
   const statCards = [
     {
-      label: 'Total Services',
+      label: 'Total Monitored',
       value: summary?.totalServices ?? services.length,
-      accent: false,
+      sublabel: `${enabledServices.length} active / ${services.length - enabledServices.length} paused`,
+      statusClass: '',
     },
     {
-      label: 'System Availability',
+      label: 'Platform Availability',
       value: availability !== null && availability !== undefined ? `${availability.toFixed(2)}%` : 'N/A',
-      accent: false,
+      sublabel: 'Aggregated SLA window',
+      statusClass: typeof availability === 'number' && availability < 99 ? styles.cardWarning : '',
     },
     {
       label: 'Healthy Services',
       value: healthyCount,
-      accent: false,
-      color: 'up' as const,
+      sublabel: 'Probes returning HTTP 2xx',
+      statusClass: styles.cardUp,
     },
     {
-      label: 'Failing Services',
+      label: 'Failing Probes',
       value: failingCount,
-      accent: failingCount > 0,
-      color: 'down' as const,
+      sublabel: failingCount > 0 ? 'Requires immediate triage' : 'Zero probe failures',
+      statusClass: failingCount > 0 ? styles.cardDown : '',
     },
     {
       label: 'Active Incidents',
       value: summary?.activeIncidentsCount ?? activeIncidents.length,
-      accent: activeIncidents.length > 0,
-      color: 'incident' as const,
+      sublabel: activeIncidents.length > 0 ? 'Triggered operational events' : 'Nominal state',
+      statusClass: activeIncidents.length > 0 ? styles.cardIncident : '',
     },
     {
-      label: 'Active Alerts',
+      label: 'Firing Alerts',
       value: summary?.activeAlertsCount ?? firingAlerts.length,
-      accent: firingAlerts.length > 0,
-      color: 'degraded' as const,
+      sublabel: firingAlerts.length > 0 ? 'Threshold evaluations tripped' : 'Within baseline limits',
+      statusClass: firingAlerts.length > 0 ? styles.cardDegraded : '',
     },
   ];
 
   return (
     <div className={styles.overviewContainer}>
-      {/* STAT CARDS GRID (2 rows × 3 columns) */}
-      <section className={styles.statsGrid} aria-label="Platform Overview Stats">
+      {/* KPI STAT CARDS (Fluid 6-card grid) */}
+      <section className={styles.statsGrid} aria-label="Platform Telemetry Metrics">
         {statCards.map((card) => (
-          <div
-            key={card.label}
-            className={`${styles.statCard} ${
-              card.color === 'down' && (card.value as number) > 0
-                ? styles.statCardDown
-                : card.color === 'incident' && (card.value as number) > 0
-                ? styles.statCardIncident
-                : card.color === 'degraded' && (card.value as number) > 0
-                ? styles.statCardDegraded
-                : ''
-            }`}
-          >
+          <div key={card.label} className={`${styles.statCard} ${card.statusClass}`}>
             <span className={styles.statLabel}>{card.label}</span>
-            <span className={styles.statValue}>
-              {isLoading ? (
-                <span className="cp-skeleton" style={{ display: 'inline-block', width: 60, height: 36, borderRadius: 6 }} />
-              ) : (
-                card.value
-              )}
-            </span>
+            <div className={styles.statValueRow}>
+              <span className={styles.statValue}>
+                {isLoading ? (
+                  <span className="cp-skeleton" style={{ display: 'inline-block', width: 64, height: 38, borderRadius: 6 }} />
+                ) : (
+                  card.value
+                )}
+              </span>
+            </div>
+            <span className={styles.statSublabel}>{card.sublabel}</span>
           </div>
         ))}
       </section>
 
-      {/* MAIN CONTENT: TABLE + RIGHT PANELS */}
+      {/* OPERATIONAL WORKSPACE: SERVICE MATRIX + REAL TELEMETRY & INCIDENT PANELS */}
       <div className={styles.mainGrid}>
-        {/* Service Health Matrix */}
+        {/* Service Health Matrix (High-Density Operational Table) */}
         <section className={styles.matrixSection} aria-label="Service Health Matrix">
           <div className={styles.panelHeader}>
-            <span className={styles.panelTitle}>Service Health matrix</span>
-            <button className={styles.menuBtn} aria-label="More options">
-              <MoreHorizontal size={16} />
-            </button>
+            <div className={styles.panelHeaderLeft}>
+              <h2 className={styles.panelTitle}>Service Health Matrix</h2>
+              <span className={styles.panelSubtitle}>
+                {filteredServices.length} of {services.length} services
+                {lastRefreshedAt && ` · Synced ${lastRefreshedAt.toLocaleTimeString()}`}
+              </span>
+            </div>
+
+            <div className={styles.searchWrapper}>
+              <Search size={14} className={styles.searchIcon} />
+              <input
+                type="search"
+                className={styles.matrixSearch}
+                placeholder="Filter services or endpoints..."
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                aria-label="Filter service health matrix"
+              />
+            </div>
           </div>
 
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
+              <colgroup>
+                <col style={{ width: '25%', minWidth: '130px' }} />
+                <col style={{ width: '15%', minWidth: '85px' }} />
+                <col style={{ width: '33%', minWidth: '150px' }} />
+                <col style={{ width: '13%', minWidth: '75px' }} />
+                <col style={{ width: '14%', minWidth: '105px' }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th className={styles.th}>
@@ -268,47 +342,74 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   </th>
                   <th className={styles.th}>
                     <button className={styles.sortBtn} onClick={() => toggleSort('env')}>
-                      Environment (tag)
+                      Environment
+                      <ArrowUpDown size={12} />
                     </button>
                   </th>
-                  <th className={styles.th}>Target URL</th>
+                  <th className={styles.th}>Target Probe Endpoint</th>
                   <th className={styles.th}>
                     <button className={styles.sortBtn} onClick={() => toggleSort('latency')}>
-                      Response Time (ms)
+                      Latest Latency
+                      <ArrowUpDown size={12} />
+                      {sortKey === 'latency' && <span>{sortAsc ? '↑' : '↓'}</span>}
                     </button>
                   </th>
                   <th className={styles.th}>
                     <button className={styles.sortBtn} onClick={() => toggleSort('status')}>
-                      Status
+                      Health Status
+                      <ArrowUpDown size={12} />
                     </button>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  [1, 2, 3, 4].map((n) => (
+                  [1, 2, 3, 4, 5].map((n) => (
                     <tr key={n} className={styles.tr}>
-                      {[160, 90, 200, 60, 90].map((w, i) => (
-                        <td key={i} className={styles.td}>
-                          <div className="cp-skeleton" style={{ height: 14, width: w }} />
-                        </td>
-                      ))}
+                      <td className={styles.td}>
+                        <div className="cp-skeleton" style={{ height: 16, width: 140 }} />
+                      </td>
+                      <td className={styles.td}>
+                        <div className="cp-skeleton" style={{ height: 16, width: 70 }} />
+                      </td>
+                      <td className={styles.td}>
+                        <div className="cp-skeleton" style={{ height: 16, width: 220 }} />
+                      </td>
+                      <td className={styles.td}>
+                        <div className="cp-skeleton" style={{ height: 16, width: 60 }} />
+                      </td>
+                      <td className={styles.td}>
+                        <div className="cp-skeleton" style={{ height: 20, width: 80 }} />
+                      </td>
                     </tr>
                   ))
                 ) : sortedServices.length === 0 ? (
                   <tr>
                     <td colSpan={5} className={styles.emptyState}>
-                      No services registered. Go to Services to add your first endpoint.
+                      <div className={styles.emptyContent}>
+                        <Activity size={24} style={{ color: 'var(--cp-text-muted)' }} />
+                        <span>
+                          {searchFilter ? 'No services match the active filter.' : 'No monitored services registered yet.'}
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   sortedServices.map((svc) => {
                     const health = computeServiceHealth(svc, incidents, alerts, latestChecks[svc.id]);
+                    const fullEndpoint = `${svc.baseUrl}${svc.healthCheckPath}`;
+                    const isCopied = copiedEndpointId === svc.id;
+
                     return (
                       <tr key={svc.id} className={styles.tr}>
                         <td className={`${styles.td} ${styles.tdPrimary}`}>
-                          <button className={styles.svcNameBtn} onClick={() => onSelectService(svc.id)}>
-                            {svc.name}
+                          <button
+                            className={styles.svcNameBtn}
+                            onClick={() => onSelectService(svc.id)}
+                            title={`Inspect detailed telemetry for ${svc.name}`}
+                          >
+                            <span>{svc.name}</span>
+                            <ExternalLink size={12} className={styles.externalIcon} />
                           </button>
                         </td>
                         <td className={styles.td}>
@@ -325,18 +426,53 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                           </span>
                         </td>
                         <td className={`${styles.td} ${styles.tdMono}`}>
-                          {svc.baseUrl}{svc.healthCheckPath}
+                          <div className={styles.endpointCell}>
+                            <span
+                              className={styles.endpointText}
+                              title={`${fullEndpoint} (Click copy icon to copy)`}
+                            >
+                              {fullEndpoint}
+                            </span>
+                            <button
+                              className={styles.copyBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(fullEndpoint);
+                                setCopiedEndpointId(svc.id);
+                                setTimeout(() => setCopiedEndpointId(null), 2000);
+                              }}
+                              title={isCopied ? 'Copied to clipboard!' : 'Copy target endpoint'}
+                              aria-label="Copy target endpoint"
+                            >
+                              {isCopied ? (
+                                <Check size={11} className={styles.copySuccess} />
+                              ) : (
+                                <Copy size={11} />
+                              )}
+                            </button>
+                          </div>
                         </td>
                         <td className={`${styles.td} ${styles.tdMono}`}>
-                          {typeof health.latencyMs === 'number' && !isNaN(health.latencyMs) && health.latencyMs >= 0
-                            ? `${health.latencyMs}ms`
-                            : <span className={styles.dash}>—</span>}
+                          {typeof health.latencyMs === 'number' && !isNaN(health.latencyMs) && health.latencyMs >= 0 ? (
+                            <span
+                              className={
+                                health.latencyMs > 300
+                                  ? styles.latencyHigh
+                                  : health.latencyMs > 100
+                                  ? styles.latencyMed
+                                  : styles.latencyNormal
+                              }
+                            >
+                              {health.latencyMs}ms
+                            </span>
+                          ) : (
+                            <span className={styles.dash}>—</span>
+                          )}
                         </td>
                         <td className={styles.td}>
                           <span className={`${styles.statusBadge} ${styles[`status_${health.status}`]}`}>
-                            {health.label.toUpperCase().replace(' ', '_') === 'OPERATIONAL' ? 'UP' :
-                             health.label.toUpperCase().replace(' ', '_') === 'INCIDENT_ACTIVE' ? 'DOWN' :
-                             health.status.toUpperCase()}
+                            <span className={styles.statusDotSmall} />
+                            {health.label}
                           </span>
                         </td>
                       </tr>
@@ -348,118 +484,162 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </section>
 
-        {/* RIGHT PANEL: Incident Timeline + Telemetry Chart */}
+        {/* RIGHT DIAGNOSTIC PANEL: INCIDENT FEED & TRUTHFUL PROBE LATENCY */}
         <aside className={styles.rightPanel}>
-          {/* Incident Timeline */}
-          <section className={styles.panelCard} aria-label="Incident Timeline">
+          {/* Active Incident Workspace */}
+          <section className={styles.panelCard} aria-label="Incident Management Workspace">
             <div className={styles.panelHeader}>
-              <span className={styles.panelTitle}>Incident Timeline</span>
-              <button className={styles.menuBtn} aria-label="More options">
-                <MoreHorizontal size={16} />
-              </button>
+              <div className={styles.panelHeaderLeft}>
+                <h3 className={styles.panelTitle}>Active Incidents</h3>
+                <span className={styles.panelSubtitle}>
+                  {activeIncidents.length === 0 ? 'Nominal' : `${activeIncidents.length} requiring attention`}
+                </span>
+              </div>
             </div>
 
             {activeIncidents.length === 0 ? (
-              <div className={styles.emptyTimeline}>
-                <CheckCircle2 size={28} style={{ color: 'var(--cp-status-up)', opacity: 0.7 }} />
-                <span>No active incidents</span>
+              <div className={styles.emptyIncident}>
+                <ShieldCheck size={32} className={styles.nominalIcon} />
+                <span className={styles.emptyTitle}>Zero Active Incidents</span>
+                <span className={styles.emptySub}>
+                  Monitored endpoints and services are operating within approved SLAs.
+                </span>
               </div>
             ) : (
-              (() => {
-                const inc = activeIncidents[0];
-                // Build timeline events from available data
-                const events = [
-                  { time: new Date(inc.openedAt), label: 'Triggered', desc: `Details setup (ID: ${inc.id.slice(0, 8)})`, color: 'var(--cp-status-down)' },
-                  inc.status === 'ACKNOWLEDGED'
-                    ? { time: new Date(new Date(inc.openedAt).getTime() + 8 * 60000), label: 'Investigating', desc: 'Investigating this problem', color: 'var(--cp-status-degraded)' }
-                    : null,
-                  inc.status === 'ACKNOWLEDGED'
-                    ? { time: new Date(new Date(inc.openedAt).getTime() + 18 * 60000), label: 'Confirmed', desc: 'Details on the cause confirmed.', color: 'var(--cp-status-degraded)' }
-                    : null,
-                ].filter(Boolean) as { time: Date; label: string; desc: string; color: string }[];
+              <div className={styles.incidentList}>
+                {activeIncidents.slice(0, 3).map((inc) => {
+                  const targetSvc = services.find((s) => s.id === inc.serviceId);
+                  const isAcking = actionInProgress === inc.id;
 
-                return (
-                  <div className={styles.timelineBody}>
-                    <div className={styles.incidentTitle}>{inc.title}</div>
-                    <div className={styles.timelineEvents}>
-                      {events.map((ev, idx) => (
-                        <div key={idx} className={styles.timelineEvent}>
-                          <div className={styles.timelineLeft}>
-                            <span className={styles.timelineTime}>
-                              {ev.time.getUTCHours().toString().padStart(2, '0')}:{ev.time.getUTCMinutes().toString().padStart(2, '0')}
-                            </span>
-                            <span className={styles.timelineDot} style={{ background: ev.color }} />
-                            {idx < events.length - 1 && <span className={styles.timelineLine} />}
-                          </div>
-                          <div className={styles.timelineContent}>
-                            <div className={styles.timelineLabel}>{ev.label}</div>
-                            <div className={styles.timelineDesc}>{ev.desc}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className={styles.incidentActions}>
-                      {inc.status === 'OPEN' && (
-                        <button
-                          className={styles.ackBtn}
-                          onClick={() => onAcknowledgeIncident(inc.id)}
+                  return (
+                    <article key={inc.id} className={styles.incidentItem}>
+                      <div className={styles.incidentItemHeader}>
+                        <span
+                          className={`${styles.incidentPill} ${
+                            inc.status === 'OPEN' ? styles.pillOpen : styles.pillAck
+                          }`}
                         >
-                          <Check size={13} /> Acknowledge
-                        </button>
+                          {inc.status}
+                        </span>
+                        <span className={styles.incidentTime}>
+                          {new Date(inc.openedAt).toLocaleTimeString()}
+                        </span>
+                      </div>
+
+                      <h4 className={styles.incidentItemTitle}>{inc.title}</h4>
+
+                      {targetSvc && (
+                        <div className={styles.incidentTarget}>
+                          Target: <strong className="mono">{targetSvc.name}</strong>
+                        </div>
                       )}
-                      <button
-                        className={styles.resolveBtn}
-                        onClick={() => onResolveIncident(inc.id)}
-                      >
-                        <CheckCircle2 size={13} /> Resolve
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()
+
+                      {inc.summary && (
+                        <p className={styles.incidentSummary}>{inc.summary}</p>
+                      )}
+
+                      {/* Truthful Milestones */}
+                      <div className={styles.milestoneTimeline}>
+                        <div className={styles.milestonePoint}>
+                          <span className={styles.milestoneDotOpen} />
+                          <span>Triggered: {new Date(inc.openedAt).toLocaleString()}</span>
+                        </div>
+                        {inc.acknowledgedAt && (
+                          <div className={styles.milestonePoint}>
+                            <span className={styles.milestoneDotAck} />
+                            <span>Acknowledged: {new Date(inc.acknowledgedAt).toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={styles.incidentActionRow}>
+                        {inc.status === 'OPEN' && (
+                          <button
+                            className={styles.ackBtn}
+                            onClick={() => handleAck(inc.id)}
+                            disabled={isAcking}
+                            aria-label={`Acknowledge incident ${inc.title}`}
+                          >
+                            <Check size={13} />
+                            <span>{isAcking ? 'Saving...' : 'Acknowledge'}</span>
+                          </button>
+                        )}
+                        <button
+                          className={styles.resolveBtn}
+                          onClick={() => handleResolve(inc.id)}
+                          disabled={isAcking}
+                          aria-label={`Resolve incident ${inc.title}`}
+                        >
+                          <CheckCircle2 size={13} />
+                          <span>{isAcking ? 'Saving...' : 'Resolve'}</span>
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             )}
           </section>
 
-          {/* p95 Telemetry Chart */}
-          <section className={styles.panelCard} aria-label="p95 Response Time Telemetry">
+          {/* Restored Probe Response Time History with Service Selector */}
+          <section className={styles.panelCard} aria-label="Probe Response Time Telemetry">
             <div className={styles.panelHeader}>
-              <span className={styles.panelTitle}>p95 Response Time (ms) Telemetry Chart</span>
-              <button className={styles.menuBtn} aria-label="More options">
-                <MoreHorizontal size={16} />
-              </button>
-            </div>
+              <div className={styles.panelHeaderLeft}>
+                <div className={styles.graphTitleRow}>
+                  <h3 className={styles.panelTitle}>Probe Response Time</h3>
+                  {activeServiceLatency !== null && (
+                    <span
+                      className={`${styles.latestLatencyPill} ${
+                        activeServiceLatency > 300
+                          ? styles.latencyPillHigh
+                          : activeServiceLatency > 100
+                          ? styles.latencyPillMed
+                          : styles.latencyPillNormal
+                      }`}
+                      title="Latest measured probe latency"
+                    >
+                      <span className={styles.statusDotSmall} />
+                      {activeServiceLatency}ms
+                    </span>
+                  )}
+                </div>
+                <span className={styles.panelSubtitle}>
+                  {activeService ? (
+                    <>
+                      <strong className={styles.serviceNameHighlight}>{activeService.name}</strong>
+                      {timeRangeLabel ? ` · ${timeRangeLabel}` : ' · Trailing checks'}
+                    </>
+                  ) : (
+                    'No services registered'
+                  )}
+                </span>
+              </div>
 
-            <div className={styles.chartMeta}>
-              <span className={styles.chartServiceLabel}>
-                <TrendingUp size={12} />
-                {primaryService ? primaryService.name : 'No service'}
-              </span>
-              <button className={styles.windowBtn} onClick={() => setSparkWindow(w => w === '60' ? '30' : w === '30' ? '15' : '60')}>
-                Last {sparkWindow} minutes <ChevronDown size={12} />
-              </button>
-            </div>
-
-            <div className={styles.chartArea}>
-              {isLoading ? (
-                <div className="cp-skeleton" style={{ width: '100%', height: 80, borderRadius: 6 }} />
-              ) : (
-                <SparklineChart data={sparkData} color="var(--cp-accent-teal)" />
+              {services.length > 0 && (
+                <div className={styles.graphControls}>
+                  <select
+                    id="overview-service-selector"
+                    className={styles.serviceSelect}
+                    value={activeService?.id ?? ''}
+                    onChange={(e) => setSelectedGraphServiceId(e.target.value)}
+                    aria-label="Select service for probe response time graph"
+                  >
+                    {services.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.environment})
+                      </option>
+                    ))}
+                  </select>
+                  {(isGraphLoading || isRefreshing) && (
+                    <RefreshCw size={12} className={styles.spinning} style={{ color: 'var(--cp-text-muted)' }} />
+                  )}
+                </div>
               )}
             </div>
 
-            <div className={styles.chartAxisX}>
-              {['15:50', '16:00', '16:35', '16:50'].map((t) => (
-                <span key={t} className={styles.axisLabel}>{t}</span>
-              ))}
+            <div className={styles.chartWrapper}>
+              <LatencyChart checks={displayedChecks} compact={true} />
             </div>
-
-            {isRefreshing && (
-              <div className={styles.refreshingTag}>
-                <RefreshCw size={11} className={styles.spinning} />
-                <span>Refreshing</span>
-              </div>
-            )}
           </section>
         </aside>
       </div>
